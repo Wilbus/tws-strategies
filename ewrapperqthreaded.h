@@ -6,7 +6,7 @@
 #include "Order.h"
 #include "OrderState.h"
 #include "ReqIdTypes.h"
-
+#include "logformatter.h"
 #include <QLabel>
 #include <QObject>
 #include <QPlainTextEdit>
@@ -241,6 +241,8 @@ public:
     QString ip;
     int port;
     int clientId;
+
+    LogFormatter logger;
 
 signals:
     void signalError(int id, int code, const std::string& msg, const std::string& advancedOrderRejectJson);

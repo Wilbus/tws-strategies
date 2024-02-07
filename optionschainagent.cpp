@@ -35,9 +35,9 @@ void OptionsChainAgent::getOptionChains()
 {
     for(const auto& [reqId, scontract] : contracts)
     {
-        QString msg = QString("OptionsChainAgent:reqSecDefOptParams reqId %1 %2").arg(
-            QString::number(reqId),
-            QString(scontract.contract.symbol.c_str()));
+        auto msg = fmtlog(logger, "%s: OptionsChainAgent:reqSecDefOptParams reqId %d %s", __func__,
+            reqId,
+            scontract.contract.symbol.c_str());
         qDebug() << msg << "\n";
         client->reqSecDefOptParams(reqId, scontract.contract.symbol,
             "" , scontract.contract.secType,scontract.contract.conId);
@@ -88,11 +88,11 @@ void OptionsChainAgent::onSignalSecurityDefinitionOptionalParameter(int reqId, c
                 contracts[reqId].options.puts[exp].push_back(putOption);
                 //contracts[reqId].options.strikes[exp].push_back(strike);
             }
-            QString msg = QString("OptionsChainAgent::onSignalSecurityDefinitionOptionalParameter, "
-                                  "Symb: %1 Exp: %2 has %3 put strikes, %4 call strikes initially").arg(
-                QString(contracts[reqId].contract.symbol.c_str()), QString(exp.c_str()),
-                QString::number(contracts[reqId].options.puts[exp].size()),
-                QString::number(contracts[reqId].options.calls[exp].size()));
+            auto msg = fmtlog(logger, "%s: OptionsChainAgent::onSignalSecurityDefinitionOptionalParameter, "
+                                  "Symb: %s Exp: %s has %d put strikes, %d call strikes initially", __func__,
+                contracts[reqId].contract.symbol.c_str(), exp.c_str(),
+                contracts[reqId].options.puts[exp].size(),
+                contracts[reqId].options.calls[exp].size());
             emit signalPassLogMsg(msg);
         }
     }
@@ -156,8 +156,8 @@ void OptionsChainAgent::checkOptionsValidity()
             }
         }
     }
-    QString msg = QString("OptionsChainAgent::checkOptionsValidity with %1 reqs").arg(
-        QString::number(optionsDetailsCounter));
+    auto msg = fmtlog(logger, "%s: OptionsChainAgent::checkOptionsValidity with %d reqs", __func__,
+        optionsDetailsCounter);
     emit signalPassLogMsg(msg);
 }
 
@@ -220,7 +220,7 @@ void OptionsChainAgent::onSignalError(int id, int code, const std::string& msg, 
 void OptionsChainAgent::sendSuperContracts()
 {
     //qDebug() << "optionschhainagent sendSuperContracts\n";
-    emit signalPassLogMsg("OptionsChainAgent::sendSuperContracts: finished processing options chains");
+    emit signalPassLogMsg(fmtlog(logger, "%s: OptionsChainAgent::sendSuperContracts: finished processing options chains", __func__));
     std::vector<SuperContract> contractsVec;
     for(const auto& [reqid, contract] : contracts)
     {

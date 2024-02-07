@@ -35,7 +35,9 @@ void AccountManager::onSignalLogger(QString msg)
 
 void AccountManager::onSignalNextValidId(OrderId id)
 {
-    emit signalPassLogMsg(QString("AccountManager Next order id %1").arg(QString::number(id)));
+    auto msg = fmtlog(logger, "%s: next order id is %d", __func__, id);
+    emit signalPassLogMsg(msg);
+
     if(!orderIdInitted)
     {
         orderId = id;
@@ -122,12 +124,11 @@ void AccountManager::onReceivePlaceOrder(Contract contract, Order order)
 {
     if(contract.secType == "OPT")
     {
-        QString msg = QString("AccountManager received to place order- OrderId: %1, Symbol: %2, SecType: %3,"
-            "%4 %5 %6 Action %7, Type: %8, LmtPrice: %9, Qty: %10").arg(QString::number(orderId), QString(contract.symbol.c_str()),
-            QString(contract.secType.c_str()), QString(order.action.c_str()), QString(order.orderType.c_str()),
-            QString(contract.right.c_str()), QString::number(contract.strike), QString(contract.lastTradeDateOrContractMonth.c_str()),
-            QString::number(order.lmtPrice), QString(DecimalFunctions::decimalStringToDisplay(order.totalQuantity).c_str()));
-        emit signalPassLogMsg(msg);
+        auto msglog = fmtlog(logger, "%s: received to place order- OrderId: %D, Symbol: %S, SecType: %S,"
+            "%s %.02f %s Action %s, Type: %s, LmtPrice: %.02f, Qty: %s", __func__, orderId, contract.symbol.c_str(),
+            contract.secType.c_str(), contract.lastTradeDateOrContractMonth.c_str(), contract.strike, contract.right.c_str(),
+            order.action.c_str(), order.orderType.c_str(), order.lmtPrice, DecimalFunctions::decimalStringToDisplay(order.totalQuantity).c_str());
+        emit signalPassLogMsg(msglog);
 
         if(contract.secType == "OPT")
         {

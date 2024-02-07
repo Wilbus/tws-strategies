@@ -1,7 +1,5 @@
 #include "ewrapperqthreaded.h"
 
-#include "qdatetime.h"
-
 #include <QCoreApplication>
 #include <QList>
 #include <iostream>
@@ -24,17 +22,13 @@ void EWrapperQThreaded::error(int id, int code, const std::string& msg, const st
 {
     if (!advancedOrderRejectJson.empty())
     {
-        QString logmsg = QString("Id: %1, code: %2, Msg: %3, OrderRejectJson: %4")
-                             .arg(QString::number(id),
-                                 QString::number(code),
-                                 QString(msg.c_str()),
-                                 QString(advancedOrderRejectJson.c_str()));
-        emit signalLogger(logmsg);
+        auto msglog = fmtlog(logger, "%s: %d, code: %d, Msg: %s, RejectJson: %s",
+            __func__, id, code, msg.c_str(), advancedOrderRejectJson.c_str());
+        emit signalLogger(msglog);
     }
     else
     {
-        QString logmsg =
-            QString("Id: %1, code: %2, Msg: %3").arg(QString::number(id), QString::number(code), QString(msg.c_str()));
+        auto logmsg = fmtlog(logger, "%s: Id: %d, code: %d, Msg: %s", __func__, id, code, msg.c_str());
         emit signalLogger(logmsg);
     }
     emit signalError(id, code, msg, advancedOrderRejectJson);
@@ -76,8 +70,7 @@ void EWrapperQThreaded::contractDetailsEnd(int reqId)
 void EWrapperQThreaded::nextValidId(OrderId id)
 {
     orderIdBuff = id;
-    std::cout << "Order ID: " << id << std::endl;
-    QString msg = QString("next order id") + QString::number(id);
+    auto msg = fmtlog(logger, "%s: next valid ID %d", __func__, id);
     emit signalLogger(msg);
     emit signalNextValidId(id);
 }
@@ -86,13 +79,10 @@ void EWrapperQThreaded::nextValidId(OrderId id)
 void EWrapperQThreaded::openOrder(
     OrderId orderId, const Contract& contract, const Order& order, const OrderState& state)
 {
-    // std::cout << "Order status: " << state.status << std::endl;
-    // std::cout << "Commission charged: " << state.commission << std::endl;
-    QString msg = QString("Order id: %1, Contract %2, State: %3\nPrice: %4, Qty: %5, Type: %6\n")
-                      .arg(QString::number(orderId), QString(contract.symbol.c_str()), QString(state.status.c_str()),
-                          QString::number(order.lmtPrice),
-                          QString(DecimalFunctions::decimalToString(order.totalQuantity).c_str()),
-                          QString(order.orderType.c_str()));
+    auto msg = fmtlog(logger, "%s: Order ID: %d, Contract: %s, Price %.02f, Qty: %s, Type: %s",
+        __func__, orderId, contract.symbol.c_str(), order.lmtPrice,
+        DecimalFunctions::decimalToString(order.totalQuantity).c_str(),
+        order.orderType.c_str());
     emit signalLogger(msg);
     emit signalOpenOrder(orderId, contract, order, state);
 }
@@ -102,13 +92,7 @@ void EWrapperQThreaded::orderStatus(OrderId orderId, const std::string& status, 
     double avgFillPrice, int permId, int parentId, double lastFillPrice, int clientId, const std::string& whyHeld,
     double mktCapPrice)
 {
-    // std::cout << "Number of filled positions: " << filled << std::endl;
-    // std::cout << "Average fill price: " << avgFillPrice << std::endl;
-    QString msg = QString("Order ID: %1, status: %2 filled: %3, remaining: %4, Avg fill: %5, whyHeld: %6")
-                      .arg(QString::number(orderId), QString(status.c_str()),
-                          QString(DecimalFunctions::decimalToString(filled).c_str()),
-                          QString(DecimalFunctions::decimalToString(remaining).c_str()), QString::number(avgFillPrice),
-                          QString(whyHeld.c_str()));
+    auto msg = fmtlog(logger, "%s: Order ID: %d, status: %s, filled %s", __func__, orderId, status.c_str());
     emit signalLogger(msg);
     emit signalOrderStatus(orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId,
         whyHeld, mktCapPrice);
@@ -132,11 +116,6 @@ void EWrapperQThreaded::positionEnd()
 void EWrapperQThreaded::accountSummary(int reqId, const std::string& account, const std::string& tag,
     const std::string& value, const std::string& currency)
 {
-    QString qreqId = QString::number(reqId);
-    QString qaccount = QString(account.c_str());
-    QString qtag = QString(tag.c_str());
-    QString qvalue = QString(value.c_str());
-    QString qcurrency = QString(currency.c_str());
     // log("reqId: %1 account: %2, tag: %3, value: %4, currency: %5\n", qreqId, qaccount, qtag,
     //     qvalue, qcurrency);
 }
@@ -231,8 +210,8 @@ void EWrapperQThreaded::tickOptionComputation(TickerId tickerId, TickType tickTy
 void EWrapperQThreaded::realtimeBar(TickerId reqId, long time, double open, double high, double low, double close,
     Decimal volume, Decimal wap, int count)
 {
-    QString msg = QString("historical bar update time: %1\n").arg(time);
-    emit signalLogger(msg);
+    //QString msg = QString("historical bar update time: %1\n").arg(time);
+    //emit signalLogger(msg);
     emit signalRealTimeBar(time, open, high, low, close, volume, wap, count);
 }
 
@@ -270,7 +249,7 @@ void EWrapperQThreaded::fundamentalData(TickerId reqId, const std::string& data)
 void EWrapperQThreaded::scannerData(int reqId, int rank, const ContractDetails& details, const std::string& distance,
     const std::string& benchmark, const std::string& proj, const std::string& legsStr)
 {
-    std::cout << rank << ": " << details.contract.symbol << std::endl;
+    //std::cout << rank << ": " << details.contract.symbol << std::endl;
     contractScanResultsBuff.push_back(details);
 }
 
@@ -281,7 +260,7 @@ void EWrapperQThreaded::scannerDataEnd(int reqId)
     // emit signalLogger(msg);
     emit signalScanResultsDone(contractScanResultsBuff);
     contractScanResultsBuff.clear();
-    std::printf("emitted signalScanResultsEnd");
+    //std::printf("emitted signalScanResultsEnd");
 }
 
 void EWrapperQThreaded::wshMetaData(int reqId, const std::string& dataJson)

@@ -7,9 +7,6 @@
 #include <thread>
 #include <cstdio>
 
-
-
-
 using namespace std;
 
 EarningsVolatilityStrat::EarningsVolatilityStrat(TwsClientQThreaded* client)
@@ -28,6 +25,8 @@ EarningsVolatilityStrat::EarningsVolatilityStrat()
 
 void EarningsVolatilityStrat::runStrat()
 {
+    emit signalPassLogMsg(fmtlog(logger, "%s start", __func__));
+
     scanResults.clear();
     contractDetailsWithEarnings.clear();
     historicalIVData.clear();
@@ -68,7 +67,7 @@ void EarningsVolatilityStrat::runStrat()
     QNetworkRequest request;
     QString requestStr = QString("https://finnhub.io/api/v1/calendar/earnings?from=%1&to=%2&token=%3")
                              .arg(QString(buff.str().c_str()), QString(buff2.str().c_str()), finnHubToken);
-    emit signalPassLogMsg(QString("GET %1").arg(requestStr));
+    emit signalPassLogMsg(fmtlog(logger, "%s: GET %s", __func__, requestStr.toStdString().c_str()));
     request.setUrl(requestStr);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     netAccessManager->get(request);
@@ -76,7 +75,7 @@ void EarningsVolatilityStrat::runStrat()
 
 void EarningsVolatilityStrat::parseEarningsCalendarFromJsonFile()
 {
-    emit signalPassLogMsg("Parsing earnings calendar from cached json file as backup action");
+    emit signalPassLogMsg(fmtlog(logger, "%s Parsing earnings calendar from cached json file as backup action", __func__));
     FILE* fp = fopen("/datadisk0/sambashare0/coding/qtdesignstudio/earningsCalendar_20230203_20230217.json", "rb");
     char readBuffer[65536];
     rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
@@ -90,7 +89,7 @@ void EarningsVolatilityStrat::parseEarningsCalendarJson(rapidjson::Document& doc
 {
     if (!doc.IsObject())
     {
-        emit signalPassLogMsg("Error parsing finnhub earnings calendar json from file\n");
+        emit signalPassLogMsg(fmtlog(logger, "%s: Error parsing finnhub earnings calendar json from file", __func__));
     }
     if (doc.HasMember("earningsCalendar") && doc["earningsCalendar"].IsArray())
     {
@@ -121,8 +120,8 @@ void EarningsVolatilityStrat::onManagerFinished(QNetworkReply* reply)
 {
     if (reply->error())
     {
-        emit signalPassLogMsg("ERROR\n");
-        emit signalPassLogMsg(reply->errorString() + "\n");
+        emit signalPassLogMsg(fmtlog(logger, "%s: ERROR", __func__));
+        emit signalPassLogMsg(fmtlog(logger, "%s: %s", __func__, reply->errorString().toStdString().c_str()));
         parseEarningsCalendarFromJsonFile();
         scanMarket();
         return;
@@ -145,7 +144,7 @@ void EarningsVolatilityStrat::onManagerFinished(QNetworkReply* reply)
 
     if (!doc.IsObject())
     {
-        emit signalPassLogMsg("Error parsing finnhub earnings calendar json from online, falling back to json files\n");
+        emit signalPassLogMsg(fmtlog(logger, "%s: Error parsing finnhub earnings calendar json from online, falling back to json files", __func__));
         parseEarningsCalendarFromJsonFile();
         scanMarket();
         return;
@@ -174,7 +173,8 @@ void EarningsVolatilityStrat::onManagerFinished(QNetworkReply* reply)
         }
     }
 
-    emit signalPassLogMsg(QString("earningsCalendar has %1 results\n").arg(earningsCalendar.size()));
+    auto msg = fmtlog(logger, "%s: earningsCalendar has %u results", __func__, earningsCalendar.size());
+    emit signalPassLogMsg(msg);
     scanMarket();
 }
 
@@ -225,7 +225,7 @@ void EarningsVolatilityStrat::onSignalScanResultsDone(std::vector<ContractDetail
 
     unsigned reqid = 1000;
     expecedHistoricalDataEnds = contractDetailsWithEarnings.size();
-    emit signalPassLogMsg(QString("requesting historicalIV for %1 symbols").arg(expecedHistoricalDataEnds));
+    emit signalPassLogMsg(fmtlog(logger, "%s: requesting historicalIV for %d symbols", __func__, expecedHistoricalDataEnds));
     for (const auto& ce : contractDetailsWithEarnings)
     {
         HistoryIVStruct ivstruct;
@@ -233,7 +233,7 @@ void EarningsVolatilityStrat::onSignalScanResultsDone(std::vector<ContractDetail
         ivstruct.symbol = ce.contract.symbol;
         historicalIVData.push_back(ivstruct);
 
-        emit signalPassLogMsg(QString("getting historical IV for %1").arg(ce.contract.symbol.c_str()));
+        emit signalPassLogMsg(fmtlog(logger, "%s: getting historical IV for %1", __func__, ce.contract.symbol.c_str()));
         client->reqHistoricalDataId(
             reqid, ce.contract, buff.str().c_str(), "1 Y", "1 day", "OPTION_IMPLIED_VOLATILITY", 0, 1, false);
         reqid += 1;
@@ -267,9 +267,8 @@ void EarningsVolatilityStrat::onSignalHistoricalDataBarEndData(int reqId, std::v
             std::sort(ivstruct.ivCandles.begin(), ivstruct.ivCandles.end(),
                 [](const UnixBar& a, const UnixBar& b) { return a.unixts < b.unixts; });
 
-            QString msg = QString("count: %1, reqID: %2, %3 has %4 iv close values")
-                              .arg(QString::number(historicalDataEndsCounter), QString::number(reqId),
-                                  QString(ivstruct.symbol.c_str()), QString::number(ivstruct.ivCandles.size()));
+            auto msg = fmtlog(logger, "%s count: %d, reqId: %d, %s has %d iv close values", historicalDataEndsCounter,
+                            reqId, ivstruct.symbol.c_str(), ivstruct.ivCandles.size());
             emit signalPassLogMsg(msg);
             historicalDataEndsCounter += 1;
             break;
@@ -278,15 +277,14 @@ void EarningsVolatilityStrat::onSignalHistoricalDataBarEndData(int reqId, std::v
     // have we received all reqIds?
     if (historicalDataEndsCounter == expecedHistoricalDataEnds)
     {
-        emit signalPassLogMsg(QString("received all historical data"));
+        emit signalPassLogMsg(fmtlog(logger, "%s: received all historical data", __func__));
         for (const auto& ivstruct : historicalIVData)
         {
             auto currIV = ivstruct.ivCandles[ivstruct.ivCandles.size() - 1].close;
             auto currIVPercentile = calculatePercentile(ivstruct.ivCandles);
 
-            QString msg = QString("%1 currIV = %2 currIVP = %3")
-                              .arg(QString(ivstruct.symbol.c_str()), QString::number(currIV),
-                                  (QString::number(currIVPercentile)));
+            auto msg = fmtlog(logger, "%s: %s currIV = %.02f currIVP = %.02f",
+                            __func__, ivstruct.symbol.c_str(), currIV, currIVPercentile);
             emit signalPassLogMsg(msg);
 
             if (currIVPercentile < 70) // can configure this later
@@ -295,9 +293,8 @@ void EarningsVolatilityStrat::onSignalHistoricalDataBarEndData(int reqId, std::v
                 {
                     if (contract.contract.symbol == ivstruct.symbol)
                     {
-                        QString msg = QString("selected %1 with currIV %2, earningsDate: %3")
-                                          .arg(QString(ivstruct.symbol.c_str()), QString::number(currIVPercentile),
-                                              QString(contract.earnings.date.c_str()));
+                        auto msg = fmtlog(logger, "selected %s with currIV %.02f, earningsDate: %s",
+                                         ivstruct.symbol.c_str(), currIVPercentile, contract.earnings.date.c_str());
                         emit signalPassLogMsg(msg);
                         selectedContractsToTrade.push_back(contract);
                     }
@@ -305,7 +302,7 @@ void EarningsVolatilityStrat::onSignalHistoricalDataBarEndData(int reqId, std::v
             }
         }
 
-        QString msg = QString("selectedContractsToTrade size = %1").arg(QString::number(selectedContractsToTrade.size()));
+        auto msg = fmtlog(logger, "selectedContractsToTrade size = %d", selectedContractsToTrade.size());
         emit signalPassLogMsg(msg);
         getLastPrice(selectedContractsToTrade);
     }
@@ -322,9 +319,8 @@ void EarningsVolatilityStrat::getLastPrice(std::vector<SuperContract_Ea>& contra
         //client->reqTickByTickDataMid(id, con.details.contract, 1);
         con.reqId = id;
 
-        emit signalPassLogMsg(QString("reqId %1 reqMktData for %2").arg(
-            QString::number(con.reqId),
-            QString(con.contract.symbol.c_str())));
+        emit signalPassLogMsg(fmtlog(logger, "%s reqId %d reqMktData for %s", __func__, con.reqId,
+            con.contract.symbol.c_str()));
         client->reqMktData(id, con.contract, "233", false, false, TagValueListSPtr());
         id += 1;
     }
@@ -332,7 +328,7 @@ void EarningsVolatilityStrat::getLastPrice(std::vector<SuperContract_Ea>& contra
 
 void EarningsVolatilityStrat::onSignalTickByTickMid(int reqId, time_t time, double midPoint)
 {
-    QString msg = QString("onSignalTickByTickMid %1, %2").arg(QString::number(reqId), QString::number(midPoint));
+    QString msg = fmtlog(logger, "%s: onSignalTickByTickMid %d, %.02f", __func__, reqId, midPoint);
     emit signalPassLogMsg(msg);
     client->cancelTickByTickData(reqId);
 }
@@ -356,26 +352,17 @@ void EarningsVolatilityStrat::onSignalTickPrice(TickerId tickerId, TickType fiel
                 case TickType::DELAYED_LAST:
                 {
                     client->cancelReqMktData(tickerId);
-                    emit signalPassLogMsg(QString("Count: %1 reqid: %2, %3 %4 %5").arg(
-                        QString::number(selectedContractsLastPriceCounter),
-                        QString::number(tickerId), QString(con.contract.symbol.c_str()),
-                        QString(tickTypeToString.at(field).c_str()), QString::number(price)));
+                    auto msg = fmtlog(logger, "%s: Count %d, reqId: %d, %s %s %.02f", __func__, selectedContractsLastPriceCounter,
+                        tickerId, con.contract.symbol.c_str(), tickTypeToString.at(field).c_str(), price);
 
                     con.currentMidPrice = price;
                     //only increase counter if its the ticktype we want
                     //because there are different ticktypes returned for the same reqID
                     selectedContractsLastPriceCounter += 1;
-
-                    //emit signalPassLogMsg(QString("Retrieving options contracts"));
-                    //getOptionsContracts(selectedContractsToTrade);
-                    //getOptionsChains(con);
                     break;
                 }
                 default:
                 {
-                    //return if its not the ticktype we want
-                    //we don't want to call accidently call getOptionsContracts when
-                    //we didn't incremenet selectedContractsLastPriceCounter
                     break;
                 }
             }
@@ -384,8 +371,7 @@ void EarningsVolatilityStrat::onSignalTickPrice(TickerId tickerId, TickType fiel
     }
     if(selectedContractsLastPriceCounter == selectedContractsToTrade.size())
     {
-        emit signalPassLogMsg(QString("Retrieving options contracts"));
-        //getOptionsContracts(selectedContractsToTrade);
+        emit signalPassLogMsg(fmtlog(logger, "%s: Retrieving options contracts", __func__));
         std::vector<Contract> cons;
         for(const auto& con : selectedContractsToTrade)
         {
@@ -410,26 +396,18 @@ void EarningsVolatilityStrat::onSignalTickPrice(TickerId tickerId, TickType fiel
                 }
                 case TickType::BID:
                 {
-                    emit signalPassLogMsg(QString("reqId %1 Call Option %2, %3 %4 %5 %6").arg(
-                        QString::number(tickerId),
-                        QString(strangle.contract.symbol.c_str()),
-                        QString::number(strangle.callSide.strike),
-                        QString(strangle.callSide.expiration.c_str()),
-                        QString(tickTypeToString.at(field).c_str()),
-                        QString::number(price)));
+                    auto msg = fmtlog(logger, "%s, reqId: %d, %s %s C %.02f %s %.02f",__func__, tickerId, strangle.contract.symbol.c_str(),
+                        strangle.callSide.expiration.c_str(), strangle.callSide.strike, tickTypeToString.at(field).c_str(), price);
+                    emit signalPassLogMsg(msg);
                     strangle.callSide.bidPrice = price;
                     sendStrangleOrdersIfReady(strangle);
                     break;
                 }
                 case TickType::ASK:
                 {
-                    emit signalPassLogMsg(QString("reqId %1 Call Option %2, %3 %4 %5 %6").arg(
-                        QString::number(tickerId),
-                        QString(strangle.contract.symbol.c_str()),
-                        QString::number(strangle.callSide.strike),
-                        QString(strangle.callSide.expiration.c_str()),
-                        QString(tickTypeToString.at(field).c_str()),
-                        QString::number(price)));
+                    auto msg = fmtlog(logger, "%s, reqId: %d, %s %s C %.02f %s %.02f",__func__, tickerId, strangle.contract.symbol.c_str(),
+                        strangle.callSide.expiration.c_str(), strangle.callSide.strike, tickTypeToString.at(field).c_str(), price);
+                    emit signalPassLogMsg(msg);
                     strangle.callSide.askPrice = price;
                     sendStrangleOrdersIfReady(strangle);
                     break;
@@ -448,40 +426,23 @@ void EarningsVolatilityStrat::onSignalTickPrice(TickerId tickerId, TickType fiel
                 case TickType::LAST:
                 case TickType::DELAYED_LAST:
                 {
-                    //client->cancelReqMktData(tickerId);
-                    /*emit signalPassLogMsg(QString("reqId %1 Put Option %2, %3 %4 %5 %6").arg(
-                        QString::number(tickerId),
-                        QString(strangle.contract.symbol.c_str()),
-                        QString::number(strangle.callSide.strike),
-                        QString(strangle.callSide.expiration.c_str()),
-                        QString(tickTypeToString.at(field).c_str()),
-                        QString::number(price)));*/
                     strangle.putSide.midPrice = price;
-                    //sendStrangleOrdersIfReady(strangle);
                     break;
                 }
                 case TickType::BID:
                 {
-                    emit signalPassLogMsg(QString("reqId %1 Put Option %2, %3 %4 %5 %6").arg(
-                        QString::number(tickerId),
-                        QString(strangle.contract.symbol.c_str()),
-                        QString::number(strangle.callSide.strike),
-                        QString(strangle.putSide.expiration.c_str()),
-                        QString(tickTypeToString.at(field).c_str()),
-                        QString::number(price)));
+                    auto msg = fmtlog(logger, "%s, reqId: %d, %s %s P %.02f %s %.02f",__func__, tickerId, strangle.contract.symbol.c_str(),
+                        strangle.putSide.expiration.c_str(), strangle.putSide.strike, tickTypeToString.at(field).c_str(), price);
+                    emit signalPassLogMsg(msg);
                     strangle.putSide.bidPrice = price;
                     sendStrangleOrdersIfReady(strangle);
                     break;
                 }
                 case TickType::ASK:
                 {
-                    emit signalPassLogMsg(QString("reqId %1 Put  Option %2, %3 %4 %5 %6").arg(
-                        QString::number(tickerId),
-                        QString(strangle.contract.symbol.c_str()),
-                        QString::number(strangle.callSide.strike),
-                        QString(strangle.putSide.expiration.c_str()),
-                        QString(tickTypeToString.at(field).c_str()),
-                        QString::number(price)));
+                    auto msg = fmtlog(logger, "%s, reqId: %d, %s %s P %.02f %s %.02f",__func__, tickerId, strangle.contract.symbol.c_str(),
+                        strangle.putSide.expiration.c_str(), strangle.putSide.strike, tickTypeToString.at(field).c_str(), price);
+                    emit signalPassLogMsg(msg);
                     strangle.putSide.askPrice = price;
                     sendStrangleOrdersIfReady(strangle);
                     break;
@@ -623,12 +584,12 @@ void EarningsVolatilityStrat::selectOptionsForStrangle(SuperContract_Ea contract
     putside.expiration = unixTimeToString(closestAfterExpDate, "%Y%m%d");
     StrangleOrder strangleOrder{callside, putside, contract.contract};
 
-    QString msg = QString("StrangleOrder->%1 CurrPrice %2 Earnings %3 C %4 %5 P %6 %7").arg(
-        QString(contract.contract.symbol.c_str()),
-        QString::number(contract.currentMidPrice),
-        QString(contract.earnings.date.c_str()),
-        QString::number(callside.strike), QString(callside.expiration.c_str()),
-        QString::number(putside.strike), QString(putside.expiration.c_str()));
+    auto msg = fmtlog(logger, "%s: StrangleOrder->%s CurrPrice %.02f Earnings %s C %.02f %s P %.02f %s", __func__,
+        contract.contract.symbol.c_str(),
+        contract.currentMidPrice,
+        contract.earnings.date.c_str(),
+        callside.strike, callside.expiration.c_str(),
+        putside.strike, putside.expiration.c_str());
     emit signalPassLogMsg(msg);
 
     strangles.push_back(strangleOrder);
@@ -647,10 +608,10 @@ void EarningsVolatilityStrat::selectOptionsForStrangle(SuperContract_Ea contract
             call.lastTradeDateOrContractMonth = strangle.callSide.expiration;
             strangle.callSide.reqPriceId = optionsPriceReqId;
 
-            QString msg = QString("ReqId: %1 ReqMktData for %2 %3 %4 %5").arg(
-                QString::number(strangle.callSide.reqPriceId),
-                QString(call.symbol.c_str()), QString(call.right.c_str()),
-                QString::number(call.strike), QString(call.lastTradeDateOrContractMonth.c_str()));
+            auto msg = fmtlog(logger, "%s: ReqId: %d ReqMktData for %s %s %.02f %s", __func__,
+                strangle.callSide.reqPriceId,
+                call.symbol.c_str(), call.right.c_str(),
+                call.strike, call.lastTradeDateOrContractMonth.c_str());
             emit signalPassLogMsg(msg);
             client->reqMktData(strangle.callSide.reqPriceId, call, "", false, false, TagValueListSPtr());
 
@@ -665,10 +626,10 @@ void EarningsVolatilityStrat::selectOptionsForStrangle(SuperContract_Ea contract
             put.lastTradeDateOrContractMonth = strangle.putSide.expiration;
             strangle.putSide.reqPriceId = optionsPriceReqId;
 
-            msg = QString("ReqId: %1 ReqMktData for %2 %3 %4 %5").arg(
-                QString::number(strangle.putSide.reqPriceId),
-                QString(put.symbol.c_str()), QString(put.right.c_str()),
-                QString::number(put.strike), QString(put.lastTradeDateOrContractMonth.c_str()));
+            msg = fmtlog(logger, "%s: ReqId: %d ReqMktData for %s %s %.02f %s", __func__,
+                strangle.putSide.reqPriceId,
+                put.symbol.c_str(), put.right.c_str(),
+                put.strike, put.lastTradeDateOrContractMonth.c_str());
             emit signalPassLogMsg(msg);
             client->reqMktData(strangle.putSide.reqPriceId, put, "", false, false, TagValueListSPtr());
 
@@ -723,12 +684,12 @@ void EarningsVolatilityStrat::filterOptionsChain(ContractDetails_Ext contract)
     putside.expiration = unixTimeToString(closestAfterExpDate, "%Y%m%d");
     StrangleOrder strangleOrder{callside, putside, contract.details.contract};
 
-    QString msg = QString("StrangleOrder->%1 CurrPrice %2 Earnings %3 C %4 %5 P %6 %7").arg(
-        QString(contract.details.contract.symbol.c_str()),
-        QString::number(contract.currentMidPrice),
-        QString(contract.earnings.date.c_str()),
-        QString::number(callside.strike), QString(callside.expiration.c_str()),
-        QString::number(putside.strike), QString(putside.expiration.c_str()));
+    auto msg = fmtlog(logger, "%s: StrangleOrder->%s CurrPrice %.02f Earnings %s C %.02f %s P %.02f %s", __func__,
+        contract.details.contract.symbol.c_str(),
+        contract.currentMidPrice,
+        contract.earnings.date.c_str(),
+        callside.strike, callside.expiration.c_str(),
+        putside.strike, putside.expiration.c_str());
     emit signalPassLogMsg(msg);
 
     strangles.push_back(strangleOrder);
@@ -747,10 +708,10 @@ void EarningsVolatilityStrat::filterOptionsChain(ContractDetails_Ext contract)
             call.lastTradeDateOrContractMonth = strangle.callSide.expiration;
             strangle.callSide.reqPriceId = optionsPriceReqId;
 
-            QString msg = QString("ReqId: %1 ReqMktData for %2 %3 %4 %5").arg(
-                QString::number(strangle.callSide.reqPriceId),
-                QString(call.symbol.c_str()), QString(call.right.c_str()),
-                QString::number(call.strike), QString(call.lastTradeDateOrContractMonth.c_str()));
+            auto msg = fmtlog(logger, "%s: ReqId: %d ReqMktData for %s %s %.02f %s", __func__,
+                strangle.callSide.reqPriceId,
+                call.symbol.c_str(), call.right.c_str(),
+                call.strike, call.lastTradeDateOrContractMonth.c_str());
             emit signalPassLogMsg(msg);
             client->reqMktData(strangle.callSide.reqPriceId, call, "", false, false, TagValueListSPtr());
 
@@ -765,10 +726,10 @@ void EarningsVolatilityStrat::filterOptionsChain(ContractDetails_Ext contract)
             put.lastTradeDateOrContractMonth = strangle.putSide.expiration;
             strangle.putSide.reqPriceId = optionsPriceReqId;
 
-            msg = QString("ReqId: %1 ReqMktData for %2 %3 %4 %5").arg(
-                QString::number(strangle.putSide.reqPriceId),
-                QString(put.symbol.c_str()), QString(put.right.c_str()),
-                QString::number(put.strike), QString(put.lastTradeDateOrContractMonth.c_str()));
+            msg = fmtlog(logger, "%s: ReqId: %d ReqMktData for %s %s %.02f %s", __func__,
+                strangle.putSide.reqPriceId,
+                put.symbol.c_str(), put.right.c_str(),
+                put.strike, put.lastTradeDateOrContractMonth.c_str());
             emit signalPassLogMsg(msg);
             client->reqMktData(strangle.putSide.reqPriceId, put, "", false, false, TagValueListSPtr());
 
@@ -794,8 +755,8 @@ void EarningsVolatilityStrat::onSignalTickByTickBidAsk(int reqId, time_t time, d
 
 void EarningsVolatilityStrat::onSignalMarketDataType(TickerId tickerId, int type)
 {
-    emit signalPassLogMsg(QString("succesfully set marketdatatype for reqId %1 to %2").arg(
-        QString::number(tickerId), QString::number(type)));
+    emit signalPassLogMsg(fmtlog(logger, "%s: succesfully set marketdatatype for reqId %d to %d", __func__,
+        tickerId, type));
 }
 
 void EarningsVolatilityStrat::onSignalError(int id, int code, const std::string& msg, const std::string& advancedOrderRejectJson)

@@ -1,5 +1,5 @@
 #include "mainwindow.h"
-
+#include "logformatter.h"
 #include "./ui_mainwindow.h"
 
 MainWindow::MainWindow(QWidget* parent)
@@ -50,6 +50,7 @@ void MainWindow::connectSignalsAndSlots()
 
 void MainWindow::onSignalLogFromStrat(QString msg)
 {
+    LogFormatter logger;
     logMsg(msg);
 }
 

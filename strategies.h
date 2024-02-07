@@ -99,6 +99,7 @@ public:
 
 protected:
     TwsClientQThreaded* client;
+    LogFormatter logger;
 
 signals:
     void signalPassLogMsg(QString msg);

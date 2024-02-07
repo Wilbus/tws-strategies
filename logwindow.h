@@ -23,8 +23,9 @@ public slots:
     void onSignalLogMsg(QString msg)
     {
         auto logbox = findChild<QPlainTextEdit*>("logBox");
-        QString msgFmt = QDateTime::currentDateTime(QTimeZone::LocalTime).toString(Qt::ISODateWithMs) + ": " + msg;
-        logbox->appendPlainText(msgFmt);
+        //QString msgFmt = QDateTime::currentDateTime(QTimeZone::LocalTime).toString(Qt::ISODateWithMs) + ": " + msg;
+        //logbox->appendPlainText(msgFmt);
+        logbox->appendPlainText(msg);
     }
 
 private:
