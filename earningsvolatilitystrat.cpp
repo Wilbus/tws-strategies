@@ -185,14 +185,14 @@ void EarningsVolatilityStrat::scanMarket()
     ScannerSubscription ss;
     ss.instrument = "STK";
     ss.locationCode = "STK.US.MAJOR";
-    ss.scanCode = "HOT_BY_OPT_VOLUME";
+    ss.scanCode = "LOW_VS_26W_HL";
     ss.abovePrice = 5;
     ss.belowPrice = 500;
     ss.aboveVolume = 500000;
     //ss.marketCapAbove = 1000000;
     // ss.marketCapAbove = scannerControls->marketCapAboveCombo->currentText().toDouble() * 1e6;
     // ss.marketCapBelow = scannerControls->marketCapBelowCombo->currentText().toDouble() * 1e6;
-    //ss.averageOptionVolumeAbove = 1000;
+    ss.averageOptionVolumeAbove = 100000;
 
     TagValueListSPtr tagList(new TagValueList());
     client->reqScannerSubscription(ss, TagValueListSPtr(), tagList);
@@ -267,7 +267,7 @@ void EarningsVolatilityStrat::onSignalHistoricalDataBarEndData(int reqId, std::v
             std::sort(ivstruct.ivCandles.begin(), ivstruct.ivCandles.end(),
                 [](const UnixBar& a, const UnixBar& b) { return a.unixts < b.unixts; });
 
-            auto msg = fmtlog(logger, "%s count: %d, reqId: %d, %s has %d iv close values", historicalDataEndsCounter,
+            auto msg = fmtlog(logger, "%s count: %d, reqId: %d, %s has %d iv close values", __func__, historicalDataEndsCounter,
                             reqId, ivstruct.symbol.c_str(), ivstruct.ivCandles.size());
             emit signalPassLogMsg(msg);
             historicalDataEndsCounter += 1;
@@ -476,7 +476,7 @@ void EarningsVolatilityStrat::sendStrangleOrdersIfReady(StrangleOrder strangle)
         Order callOrder;
         callOrder.action = "BUY";
         callOrder.totalQuantity = DecimalFunctions::stringToDecimal("1");
-        callOrder.orderType = "MKT";
+        callOrder.orderType = "LMT";
         Decimal cbidPriceD = DecimalFunctions::stringToDecimal(std::to_string(strangle.callSide.bidPrice));
         Decimal caskPriceD = DecimalFunctions::stringToDecimal(std::to_string(strangle.callSide.askPrice));
         Decimal cmidPriceD = (cbidPriceD + caskPriceD) / 2;
@@ -499,7 +499,7 @@ void EarningsVolatilityStrat::sendStrangleOrdersIfReady(StrangleOrder strangle)
         Order putOrder;
         putOrder.action = "BUY";
         putOrder.totalQuantity = DecimalFunctions::stringToDecimal("1");
-        putOrder.orderType = "MKT";
+        putOrder.orderType = "LMT";
         Decimal pbidPriceD = DecimalFunctions::stringToDecimal(std::to_string(strangle.putSide.bidPrice));
         Decimal paskPriceD = DecimalFunctions::stringToDecimal(std::to_string(strangle.putSide.askPrice));
         Decimal pmidPriceD = (pbidPriceD + paskPriceD) / 2;

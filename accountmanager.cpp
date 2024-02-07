@@ -124,8 +124,8 @@ void AccountManager::onReceivePlaceOrder(Contract contract, Order order)
 {
     if(contract.secType == "OPT")
     {
-        auto msglog = fmtlog(logger, "%s: received to place order- OrderId: %D, Symbol: %S, SecType: %S,"
-            "%s %.02f %s Action %s, Type: %s, LmtPrice: %.02f, Qty: %s", __func__, orderId, contract.symbol.c_str(),
+        auto msglog = fmtlog(logger, "%s: received to place order- OrderId: %d, Symbol: %s, SecType: %s"
+            "%s %.2f %s Action %s, Type: %s, LmtPrice: %.2f, Qty: %s", __func__, orderId, contract.symbol.c_str(),
             contract.secType.c_str(), contract.lastTradeDateOrContractMonth.c_str(), contract.strike, contract.right.c_str(),
             order.action.c_str(), order.orderType.c_str(), order.lmtPrice, DecimalFunctions::decimalStringToDisplay(order.totalQuantity).c_str());
         emit signalPassLogMsg(msglog);
