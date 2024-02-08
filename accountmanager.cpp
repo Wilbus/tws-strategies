@@ -1,4 +1,5 @@
 #include "accountmanager.h"
+#include "marketdatasingleton.h"
 
 AccountManager::AccountManager()
 {
@@ -86,7 +87,6 @@ void AccountManager::onSignalOrderStatus(OrderId orderId, const std::string& sta
     else
     {
         pendingOrders[orderId].status = status;
-        pendingOrders[orderId].status = status;
         pendingOrders[orderId].filled = filled;
         pendingOrders[orderId].remaining = remaining;
         pendingOrders[orderId].avgFillPrice = avgFillPrice;
@@ -97,11 +97,24 @@ void AccountManager::onSignalOrderStatus(OrderId orderId, const std::string& sta
         pendingOrders[orderId].whyHeld = whyHeld;
         pendingOrders[orderId].mktCapPrice = mktCapPrice;
     }
+    //pendingOrders[orderId] should be present by now
+    if(pendingOrders[orderId].state.status == "Submitted") //Submitted is the status we want to use in production
+    {
+        QTimer* timer = new QTimer();
+        orderTimers[orderId] = timer;
+        connect(timer, &QTimer::timeout, this, std::bind(&AccountManager::updateBid, this, orderId));
+        orderTimers[orderId]->start(10e3); //ms
+        auto msg = fmtlog(logger, "%s: starting order timer for orderID %d", __func__, orderId);
+        emit signalPassLogMsg(msg);
+    }
+    else if(pendingOrders[orderId].state.status == "Filled")
+    {
+        orderTimers[orderId]->stop();
+    }
 }
 
 void AccountManager::onSignalOpenOrder(OrderId orderId, const Contract& contract, const Order& order, const OrderState& state)
 {
-    //emit signalPassLogMsg(QString("AccountManager openOrderResp %1 %2").arg(QString::number(orderId), QString(contract.symbol.c_str())));
     emit signalOpenOrderDraw(orderId, contract, order, state);
     if(pendingOrders.find(orderId) == pendingOrders.end())
     {
@@ -118,6 +131,34 @@ void AccountManager::onSignalOpenOrder(OrderId orderId, const Contract& contract
         pendingOrders[orderId].order = order;
         pendingOrders[orderId].state = state;
     }
+}
+
+void AccountManager::updateBid(OrderId orderId)
+{
+    auto msg = fmtlog(logger, "%s: updating orderid %d\n", __func__, orderId);
+    emit signalPassLogMsg(msg);
+    //looks like modifying order only works if you recreate the same order as before exactly the same
+    auto pendingContract = pendingOrders[orderId].contract;
+    auto pendingOrder = pendingOrders[orderId].order;
+    Contract contract;
+    contract.symbol = pendingContract.symbol;
+    contract.secType = pendingContract.secType;
+    contract.right = pendingContract.right;
+    contract.strike = pendingContract.strike;
+    contract.exchange = pendingContract.exchange;
+    contract.lastTradeDateOrContractMonth = pendingContract.lastTradeDateOrContractMonth;
+    Order order;
+    order.action = pendingOrder.action;
+    order.orderType = pendingOrder.orderType;
+    order.lmtPrice = std::ceil(pendingOrder.lmtPrice * 99.0) / 100.0;//pendingOrder.lmtPrice;
+    order.totalQuantity = pendingOrder.totalQuantity;
+    order.transmit = pendingOrder.transmit;
+    order.algoStrategy = pendingOrder.algoStrategy;
+    order.algoParams = pendingOrder.algoParams;
+
+    //stop this instance of timer beacause a new timer will be created onSignalOrderStatus
+    orderTimers[orderId]->stop();
+    client->placeOrder(orderId, contract, order);
 }
 
 void AccountManager::onReceivePlaceOrder(Contract contract, Order order)
@@ -149,7 +190,8 @@ void AccountManager::onReceivePlaceOrder(Contract contract, Order order)
             }
         }
 
-        client->placeOrder(orderId++, contract, order);
-        //client->reqNextValidOrderId();
+        submittedOrders[orderId] = OrderStruct{contract, order};
+        client->placeOrder(orderId, contract, order);
+        orderId += 1;
     }
 }

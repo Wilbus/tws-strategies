@@ -5,25 +5,28 @@
 #include "twsclientqthreaded.h"
 #include "ReqIdTypes.h"
 #include "strategies.h"
+#include <QTimer>
 
 class AccountManager : public BaseAgent
 {
+
     Q_OBJECT
 public:
     AccountManager();
 
     AccountManager(TwsClientQThreaded* client);
 
+    void runStrat() override//this agent doesn't run strats
+    {
+        subscribeAccountUpdates();
+        subscribePortoflioUpdates();
+    }
+
+private:
     void getNextValidOrderId();
     void subscribeAccountUpdates();
     void subscribePortoflioUpdates();
 
-    void runStrat() override//this agent doesn't run strats
-    {
-
-    }
-
-private:
     //TwsClientQThreaded* client;
     OrderId orderId;
     bool orderIdInitted{false};
@@ -31,6 +34,10 @@ private:
     int subscribePortfolioUpdates{101};
     std::map<uint64_t, ActivePosition> activePositions;
     std::map<OrderId, PendingOrderStruct> pendingOrders;
+    std::map<OrderId, OrderStruct> submittedOrders;
+    std::map<OrderId, QTimer*> orderTimers;
+    //std::map<OrderId, ReorderTimer> pendingOrderTimers;
+    //std::map<OrderId, QSharedPointer<QTimer>> pendingOrderTimers;
 
 signals:
 //signals to send to gui window
@@ -60,6 +67,9 @@ public slots:
 
 //signals to receieve to perform actions like placing orders
     void onReceivePlaceOrder(Contract contract, Order order);
+
+//update bid price if it hasn't been filled within some time
+    void updateBid(OrderId orderId);
 };
 
 #endif // ACCOUNTMANAGER_H

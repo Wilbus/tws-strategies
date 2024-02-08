@@ -11,6 +11,7 @@ OptionsChainAgent::OptionsChainAgent()
 
 void OptionsChainAgent::onSignalGetOptionsChain(std::vector<Contract> contractsVec)
 {
+    clearContracts();
     for(const auto& con : contractsVec)
     {
         SuperContract scontract;

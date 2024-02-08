@@ -112,6 +112,7 @@ public:
     ~EarningsVolatilityStrat()
     {
         //delete netAccessManager;
+        client->disconnect();
     }
 
     void runStrat() override;

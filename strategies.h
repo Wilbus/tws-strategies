@@ -7,6 +7,7 @@
 enum AgentClientIds
 {
     AccountManagerClient = 0,
+    DataBrokerClient,
     OptionsChainClient,
     EarningsVolatilityStratClient,
     EarningsVolatilityMonitorClient,
@@ -14,12 +15,66 @@ enum AgentClientIds
 
 enum StrategyAgents
 {
-    EarningsVolatilityAgent = 0,
-    EarningsVolatilityMonitorAgent
+    AccountManagerAgent = 0,
+    DataBrokerAgent,
+    EarningsVolatilityAgent,
+    EarningsVolatilityMonitorAgent,
+    OptionsChainRetreiver,
+};
+
+class IBaseAgent : public QObject
+{
+
+Q_OBJECT
+public:
+    virtual void runStrat() = 0;
+
+signals:
+    void signalPassLogMsg(QString msg);
+    void signalSendOrderToAccountManager(Contract contract, Order order);
+
+public slots:
+    virtual void onSignalError(int id, int code, const std::string& msg, const std::string& advancedOrderRejectJson) = 0;
+    virtual void onSignalLogger(QString str) = 0;
+    virtual void onSignalNextValidId(OrderId id)= 0;
+    virtual void onSignalScanResultsDone(std::vector<ContractDetails> results)= 0;
+    virtual void onSignalHistoricalDataBar(Bar bar)= 0; // for charting clientid
+    virtual void onSignalHistoricalDataUpdate(int id, Bar bar)= 0;
+    virtual void onSignalSelectedScanResultsDataBar(Bar bar)= 0;
+    virtual void onSignalHistoricalDataBarEnd(QString startDate, QString endDate)= 0;
+    virtual void onSignalHistoricalDataBarEndData(int reqId, std::vector<Bar> bars)= 0; // for charting clientid
+    virtual void onSignalSelectedScanResultsDataEnd(QString startDate, QString endDate)= 0;
+    virtual void onSignalRealTimeBar(
+        long time, double open, double high, double low, double close, Decimal volume, Decimal wap, int count)= 0;
+    virtual void onSignalTickByTickBidAsk(int reqId, time_t time, double bidPrice, double askPrice, Decimal bidSize,
+        Decimal askSize, const TickAttribBidAsk& tickAttribBidAsk)= 0;
+    virtual void onSignalTickByTickMid(int reqId, time_t time, double midPoint)= 0;
+    virtual void onSignalAccountUpdateValue(
+        const std::string& key, const std::string& val, const std::string& currency, const std::string& accountName)= 0;
+    virtual void onSignalUpdatePortfolio(const Contract& contract, Decimal position, double marketPrice, double marketValue,
+        double averageCost, double unrealizedPNL, double realizedPNL, const std::string& accountName)= 0;
+    virtual void onSignalPositionsMulti(int reqId, const std::string& account, const std::string& modelCode,
+        const Contract& contract, Decimal pos, double avgCost)= 0;
+    virtual void onSignalPositionsMultiEnd(int reqId)= 0;
+    virtual void onSignalOrderStatus(OrderId orderId, const std::string& status, Decimal filled, Decimal remaining,
+        double avgFillPrice, int permId, int parentId, double lastFillPrice, int clientId, const std::string& whyHeld,
+        double mktCapPrice)= 0;
+    virtual void onSignalOpenOrder(OrderId orderId, const Contract& contract, const Order& order, const OrderState& state)= 0;
+    virtual void onSignalContractDetails(int reqid, ContractDetails details)= 0;
+    virtual void onSignalContractDetailsEnd(int reqid)= 0;
+    virtual void onSignalWshMetaData(int reqId, const std::string& dataJson)= 0;
+    virtual void onSignalWshEventData(int reqId, const std::string& dataJson)= 0;
+    virtual void onSignalFundamentalData(int reqId, const std::string& dataXml)= 0;
+    virtual void onSignalSecurityDefinitionOptionalParameter(int reqId, const std::string& exchange, int underlyingConId,
+        const std::string& tradingClass, const std::string& multiplier, const std::set<std::string>& expirations,
+        const std::set<double>& strikes)= 0;
+    virtual void onSignalSecurityDefinitionOptionalParameterEnd(int reqId)= 0;
+    virtual void onSignalTickPrice(TickerId tickerId, TickType field, double price, const TickAttrib& attrib)= 0;
+    virtual void onSignalMarketDataType(TickerId reqId, int marketDataType)= 0;
 };
 
 
-class BaseAgent : public QObject
+class BaseAgent : public IBaseAgent
 {
 
     Q_OBJECT
@@ -53,12 +108,6 @@ public:
 
         connect(client->qewrapper, SIGNAL(signalOpenOrder(OrderId,Contract,Order,OrderState)),
             this, SLOT(onSignalOpenOrder(OrderId,Contract,Order,OrderState)));
-
-        connect(client->qewrapper, SIGNAL(signalLogger(QString)),
-        this, SLOT(onSignalLogger(QString)));
-
-        connect(client->qewrapper, SIGNAL(signalNextValidId(OrderId)), this,
-            SLOT(onSignalNextValidId(OrderId)));
 
         connect(client->qewrapper, SIGNAL(signalHistoricalDataBar(Bar)), this,
             SLOT(onSignalHistoricalDataBar(Bar)));
@@ -100,10 +149,6 @@ public:
 protected:
     TwsClientQThreaded* client;
     LogFormatter logger;
-
-signals:
-    void signalPassLogMsg(QString msg);
-    void signalSendOrderToAccountManager(Contract contract, Order order);
 
 public slots:
     virtual void onSignalError(int id, int code, const std::string& msg, const std::string& advancedOrderRejectJson) {};

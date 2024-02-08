@@ -6,6 +6,8 @@
 #include "Order.h"
 #include "Contract.h"
 #include "OrderState.h"
+#include <QTimer>
+#include <QSharedPointer>
 
 enum ReqIdType
 {
@@ -53,8 +55,10 @@ struct OrderStruct
     Order order;
 };
 
+
 struct PendingOrderStruct
 {
+public:
     Contract contract;
     Order order;
     OrderState state;

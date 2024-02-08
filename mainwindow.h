@@ -8,6 +8,7 @@
 #include "strategies.h"
 #include "optionschainagent.h"
 #include <QMainWindow>
+#include "agentcontroller.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -64,8 +65,12 @@ private:
     Ui::MainWindow* ui;
     QSharedPointer<LogWindow> logWindow;
 
-    QSharedPointer<EarningsVolatilityStrat> earningStrat;
-    QSharedPointer<AccountManager> accountManager;
-    QSharedPointer<OptionsChainAgent> optionsAgent;
+    QSharedPointer<IBaseAgent> earningStrat;
+    //QSharedPointer<IBaseAgent> accountManager;
+    //QSharedPointer<IBaseAgent> optionsAgent;
+
+    QSharedPointer<AgentController> accountAgentController;
+    QSharedPointer<AgentController> optionsChainAgentController;
+    QSharedPointer<AgentController> earningsStratController;
 };
 #endif // MAINWINDOW_H

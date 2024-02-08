@@ -14,15 +14,14 @@ MainWindow::MainWindow(QWidget* parent)
     // logWindow->setAttribute(Qt::WA_DeleteOnClose);
     logWindow->show();
 
-    accountManager = QSharedPointer<AccountManager>(new AccountManager());
-    optionsAgent = QSharedPointer<OptionsChainAgent>(new OptionsChainAgent());
+    accountAgentController = QSharedPointer<AgentController>(new AgentController(StrategyAgents::AccountManagerAgent));
+    optionsChainAgentController = QSharedPointer<AgentController>(new AgentController(StrategyAgents::OptionsChainRetreiver));
 
     connectSignalsAndSlots();
     connectClientSignalsAndSlots();
 
-    accountManager->subscribeAccountUpdates();
-    accountManager->subscribePortoflioUpdates();
-
+    accountAgentController->start();
+    optionsChainAgentController->start();
 }
 
 MainWindow::~MainWindow()
@@ -33,18 +32,18 @@ MainWindow::~MainWindow()
 void MainWindow::connectSignalsAndSlots()
 {
     connect(this, SIGNAL(signalLogMsg(QString)), logWindow.get(), SLOT(onSignalLogMsg(QString)));
-    connect(accountManager.get(), SIGNAL(signalPassLogMsg(QString)), this, SLOT(onSignalLogFromStrat(QString)));
-    connect(optionsAgent.get(), SIGNAL(signalPassLogMsg(QString)), this, SLOT(onSignalLogFromStrat(QString)));
+    connect(accountAgentController->getAgent(), SIGNAL(signalPassLogMsg(QString)), this, SLOT(onSignalLogFromStrat(QString)));
+    connect(optionsChainAgentController->getAgent(), SIGNAL(signalPassLogMsg(QString)), this, SLOT(onSignalLogFromStrat(QString)));
 
-    connect(accountManager.get(), SIGNAL(signalAccountUpdatesDraw(std::string,std::string,std::string,std::string)),
+    connect(accountAgentController->getAgent(), SIGNAL(signalAccountUpdatesDraw(std::string,std::string,std::string,std::string)),
         this, SLOT(onSignalAccountUpdatesDraw(std::string,std::string,std::string,std::string)));
 
-    connect(accountManager.get(), SIGNAL(signalOpenOrderDraw(OrderId,Contract,Order,OrderState)),
+    connect(accountAgentController->getAgent(), SIGNAL(signalOpenOrderDraw(OrderId,Contract,Order,OrderState)),
         this, SLOT(onSignalOpenOrderDraw(OrderId,Contract,Order,OrderState)));
-    connect(accountManager.get(), SIGNAL(signalOrderStatusDraw(OrderId,std::string,Decimal,Decimal,double,int,int,double,int,std::string,double)),
+    connect(accountAgentController->getAgent(), SIGNAL(signalOrderStatusDraw(OrderId,std::string,Decimal,Decimal,double,int,int,double,int,std::string,double)),
         this, SLOT(onSignalOrderStatusDraw(OrderId,std::string,Decimal,Decimal,double,int,int,double,int,std::string,double)));
 
-    connect(accountManager.get(), SIGNAL(signalPortfolioUpdatesDraw(Contract,Decimal,double,double,double,double,double,std::string)),
+    connect(accountAgentController->getAgent(), SIGNAL(signalPortfolioUpdatesDraw(Contract,Decimal,double,double,double,double,double,std::string)),
         this, SLOT(onSignalPortfolioUpdatesDraw(Contract,Decimal,double,double,double,double,double,std::string)));
 }
 
@@ -71,20 +70,33 @@ void MainWindow::on_pushButton_clicked()
     {
         case StrategyAgents::EarningsVolatilityAgent:
         {
-            earningStrat = QSharedPointer<EarningsVolatilityStrat>(new EarningsVolatilityStrat());
+            //earningStrat = QSharedPointer<EarningsVolatilityStrat>(new EarningsVolatilityStrat());
+            earningsStratController = QSharedPointer<AgentController>(new AgentController(StrategyAgents::EarningsVolatilityAgent));
 
-            connect(earningStrat.get(), SIGNAL(signalPassLogMsg(QString)), this, SLOT(onSignalLogFromStrat(QString)));
+            /*connect(earningStrat.get(), SIGNAL(signalPassLogMsg(QString)), this, SLOT(onSignalLogFromStrat(QString)));
 
             connect(earningStrat.get(), SIGNAL(signalSendOrderToAccountManager(Contract,Order)),
-                accountManager.get(), SLOT(onReceivePlaceOrder(Contract,Order)));
+                accountAgentController->getAgent(), SLOT(onReceivePlaceOrder(Contract,Order)));
 
             connect(earningStrat.get(), SIGNAL(signalRequestOptionsChain(std::vector<Contract>)),
-                optionsAgent.get(), SLOT(onSignalGetOptionsChain(std::vector<Contract>)));
+                optionsChainAgentController->getAgent(), SLOT(onSignalGetOptionsChain(std::vector<Contract>)));
 
-            connect(optionsAgent.get(), SIGNAL(signalSendSuperContracts(std::vector<SuperContract>)),
-                earningStrat.get(), SLOT(onRecieveOptionsChain(std::vector<SuperContract>)));
+            connect(optionsChainAgentController->getAgent(), SIGNAL(signalSendSuperContracts(std::vector<SuperContract>)),
+                earningStrat.get(), SLOT(onRecieveOptionsChain(std::vector<SuperContract>)));*/
 
-            earningStrat->runStrat();
+            connect(earningsStratController->getAgent(), SIGNAL(signalPassLogMsg(QString)), this, SLOT(onSignalLogFromStrat(QString)));
+
+            connect(earningsStratController->getAgent(), SIGNAL(signalSendOrderToAccountManager(Contract,Order)),
+                accountAgentController->getAgent(), SLOT(onReceivePlaceOrder(Contract,Order)));
+
+            connect(earningsStratController->getAgent(), SIGNAL(signalRequestOptionsChain(std::vector<Contract>)),
+                optionsChainAgentController->getAgent(), SLOT(onSignalGetOptionsChain(std::vector<Contract>)));
+
+            connect(optionsChainAgentController->getAgent(), SIGNAL(signalSendSuperContracts(std::vector<SuperContract>)),
+                earningsStratController->getAgent(), SLOT(onRecieveOptionsChain(std::vector<SuperContract>)));
+
+            //earningStrat->runStrat();
+            earningsStratController->start();
             break;
         }
         default:

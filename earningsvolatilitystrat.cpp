@@ -482,7 +482,7 @@ void EarningsVolatilityStrat::sendStrangleOrdersIfReady(StrangleOrder strangle)
         Decimal cmidPriceD = (cbidPriceD + caskPriceD) / 2;
         double cmidPrice = DecimalFunctions::decimalToDouble(cmidPriceD);
         callOrder.lmtPrice = std::ceil(cmidPrice * 100.0) / 100.0;
-        callOrder.transmit = false;
+        callOrder.transmit = true;
         callOrder.algoStrategy = "Adaptive";
         callOrder.algoParams.reset(new TagValueList());
         TagValueSPtr tagc(new TagValue("adaptivePriority", "Urgent"));
@@ -505,7 +505,7 @@ void EarningsVolatilityStrat::sendStrangleOrdersIfReady(StrangleOrder strangle)
         Decimal pmidPriceD = (pbidPriceD + paskPriceD) / 2;
         double pmidPrice = DecimalFunctions::decimalToDouble(pmidPriceD);
         putOrder.lmtPrice = std::ceil(pmidPrice * 100.0) / 100.0;
-        putOrder.transmit = false;
+        putOrder.transmit = true;
         putOrder.algoStrategy = "Adaptive";
         putOrder.algoParams.reset(new TagValueList());
         TagValueSPtr tagp(new TagValue("adaptivePriority", "Urgent"));
