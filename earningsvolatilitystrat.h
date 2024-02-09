@@ -134,8 +134,6 @@ private:
 
     void getLastPrice(std::vector<SuperContract_Ea>& contracts);
     void selectOptionsForStrangle(SuperContract_Ea contract);
-    void filterOptions();
-    void filterOptionsChain(ContractDetails_Ext contract);
     void sendStrangleOrdersIfReady(StrangleOrder strangle);
 
     std::vector<ContractDetails> scanResults;
@@ -176,10 +174,6 @@ public slots:
     void onSignalLogger(QString msg) override;
     void onSignalHistoricalDataBarEndData(int reqId, std::vector<Bar> bars) override;
     void onSignalScanResultsDone(std::vector<ContractDetails> results) override;
-    void onSignalTickByTickBidAsk(int reqId, time_t time, double bidPrice, double askPrice, Decimal bidSize,
-        Decimal askSize, const TickAttribBidAsk& tickAttribBidAsk) override;
-    void onSignalTickByTickMid(int reqId, time_t time, double midPoint) override;
-    void onSignalTickPrice(TickerId tickerId, TickType field, double price, const TickAttrib& attrib) override;
     void onSignalMarketDataType(TickerId tickerId, int type) override;
 };
 

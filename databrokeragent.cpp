@@ -43,7 +43,7 @@ void DataBroker::onSubscribeMktData(Contract contract)
     else if(contract.secType == "OPT")
         msg = fmtlog(logger, "%s: subscribe to %s mktData with reqId %d", __func__, optionContractString(contract).c_str(), reqIdCounter);
     emit signalPassLogMsg(msg);
-    //client->reqMarketDataType(MarketDataTypes::Frozen);
+    client->reqMarketDataType(MarketDataTypes::Frozen);
     client->reqMktData(reqIdCounter, contract, "", false, false, TagValueListSPtr());
     reqIdMap[reqIdCounter] = contract;
     reqIdCounter++;

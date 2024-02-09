@@ -315,13 +315,7 @@ void EarningsVolatilityStrat::getLastPrice(std::vector<SuperContract_Ea>& contra
     //client->reqMarketDataType(MarketDataTypes::Frozen); //test for when market is closed
     for (auto& con : contracts) //set reqId to associate the reqId with particular contract_ext struct
     {
-        //TODO: maybe use this when ready
-        //client->reqTickByTickDataMid(id, con.details.contract, 1);
         con.reqId = id;
-
-        /*emit signalPassLogMsg(fmtlog(logger, "%s reqId %d reqMktData for %s", __func__, con.reqId,
-            con.contract.symbol.c_str()));
-        client->reqMktData(id, con.contract, "233", false, false, TagValueListSPtr());*/
         emit signalSubscribeDataBrokerMktData(con.contract);
         id += 1;
     }
@@ -348,138 +342,11 @@ void EarningsVolatilityStrat::getLastPrice(std::vector<SuperContract_Ea>& contra
     emit signalRequestOptionsChain(searchForOptions, scanEarningsDateEnd + 1.21e6); //give 2 weeks extra buffer to search for
 }
 
-void EarningsVolatilityStrat::onSignalTickByTickMid(int reqId, time_t time, double midPoint)
-{
-    QString msg = fmtlog(logger, "%s: onSignalTickByTickMid %d, %.02f", __func__, reqId, midPoint);
-    emit signalPassLogMsg(msg);
-    client->cancelTickByTickData(reqId);
-}
-
-void EarningsVolatilityStrat::onSignalTickPrice(TickerId tickerId, TickType field, double price, const TickAttrib& attrib)
-{
-    for(auto& con : selectedContractsToTrade)
-    {
-        if(tickerId == con.reqId)
-        {
-            switch(field)
-            {
-                case TickType::LAST:
-                case TickType::DELAYED_LAST:
-                {
-                    client->cancelReqMktData(tickerId);
-                    auto msg = fmtlog(logger, "%s: Count %d, reqId: %d, %s %s %.02f", __func__, selectedContractsLastPriceCounter,
-                        tickerId, con.contract.symbol.c_str(), tickTypeToString.at(field).c_str(), price);
-
-                    con.currentMidPrice = price;
-                    //only increase counter if its the ticktype we want
-                    //because there are different ticktypes returned for the same reqID
-                    selectedContractsLastPriceCounter += 1;
-                    break;
-                }
-                default:
-                {
-                    break;
-                }
-            }
-            break;
-        }
-    }
-    if(selectedContractsLastPriceCounter == selectedContractsToTrade.size())
-    {
-        emit signalPassLogMsg(fmtlog(logger, "%s: Retrieving options contracts", __func__));
-        std::vector<Contract> cons;
-        for(const auto& con : selectedContractsToTrade)
-        {
-            cons.push_back(con.contract);
-        }
-        emit signalRequestOptionsChain(cons);
-        selectedContractsLastPriceCounter = 0; //reset so we don't call it again
-    }
-    for(auto& strangle : strangles)
-    {
-        if(tickerId == strangle.callSide.reqPriceId)
-        {
-            switch(field)
-            {
-                case TickType::LAST:
-                case TickType::DELAYED_LAST:
-                {
-                    //client->cancelReqMktData(tickerId);
-                    strangle.callSide.midPrice = price;
-                    //sendStrangleOrdersIfReady(strangle);
-                    break;
-                }
-                case TickType::BID:
-                {
-                    auto msg = fmtlog(logger, "%s, reqId: %d, %s %s C %.02f %s %.02f",__func__, tickerId, strangle.contract.symbol.c_str(),
-                        strangle.callSide.expiration.c_str(), strangle.callSide.strike, tickTypeToString.at(field).c_str(), price);
-                    emit signalPassLogMsg(msg);
-                    strangle.callSide.bidPrice = price;
-                    sendStrangleOrdersIfReady(strangle);
-                    break;
-                }
-                case TickType::ASK:
-                {
-                    auto msg = fmtlog(logger, "%s, reqId: %d, %s %s C %.02f %s %.02f",__func__, tickerId, strangle.contract.symbol.c_str(),
-                        strangle.callSide.expiration.c_str(), strangle.callSide.strike, tickTypeToString.at(field).c_str(), price);
-                    emit signalPassLogMsg(msg);
-                    strangle.callSide.askPrice = price;
-                    sendStrangleOrdersIfReady(strangle);
-                    break;
-                }
-                default:
-                {
-                    break;
-                }
-            }
-            break;
-        }
-        else if(tickerId == strangle.putSide.reqPriceId)
-        {
-            switch(field)
-            {
-                case TickType::LAST:
-                case TickType::DELAYED_LAST:
-                {
-                    strangle.putSide.midPrice = price;
-                    break;
-                }
-                case TickType::BID:
-                {
-                    auto msg = fmtlog(logger, "%s, reqId: %d, %s %s P %.02f %s %.02f",__func__, tickerId, strangle.contract.symbol.c_str(),
-                        strangle.putSide.expiration.c_str(), strangle.putSide.strike, tickTypeToString.at(field).c_str(), price);
-                    emit signalPassLogMsg(msg);
-                    strangle.putSide.bidPrice = price;
-                    sendStrangleOrdersIfReady(strangle);
-                    break;
-                }
-                case TickType::ASK:
-                {
-                    auto msg = fmtlog(logger, "%s, reqId: %d, %s %s P %.02f %s %.02f",__func__, tickerId, strangle.contract.symbol.c_str(),
-                        strangle.putSide.expiration.c_str(), strangle.putSide.strike, tickTypeToString.at(field).c_str(), price);
-                    emit signalPassLogMsg(msg);
-                    strangle.putSide.askPrice = price;
-                    sendStrangleOrdersIfReady(strangle);
-                    break;
-                }
-                default:
-                {
-                    break;
-                }
-            }
-            break;
-        }
-    }
-}
-
 void EarningsVolatilityStrat::sendStrangleOrdersIfReady(StrangleOrder strangle)
 {
     if(strangle.callSide.bidPrice > 0 && strangle.callSide.askPrice > 0 &&
         strangle.putSide.bidPrice > 0 && strangle.putSide.askPrice > 0)
     {
-        //client->cancelReqMktData(strangle.callSide.reqPriceId);
-        //client->cancelReqMktData(strangle.putSide.reqPriceId);
-
         Contract contractC;
         contractC.symbol = strangle.contract.symbol;
         contractC.secType = "OPT";
@@ -584,11 +451,6 @@ void EarningsVolatilityStrat::selectOptionsForStrangle(SuperContract_Ea contract
     for(const auto& callOption : contract.options.calls[closestAfterExpDateStr])
     {
         double diff = callOption.strike - contract.currentMidPrice;
-        /*QString dmsg = QString("%1 %2 diff %3").arg(
-            QString(contract.details.contract.symbol.c_str()),
-            QString::number(strike),
-            QString::number(diff));
-        emit signalPassLogMsg(dmsg);*/
         if(diff >= 0 && diff < (closestCallStrike - contract.currentMidPrice)) //call
         {
             closestCallStrike = callOption.strike;
@@ -683,119 +545,9 @@ void EarningsVolatilityStrat::selectOptionsForStrangle(SuperContract_Ea contract
     }
 }
 
-void EarningsVolatilityStrat::filterOptionsChain(ContractDetails_Ext contract)
-{
-    auto earningsDate = contract.earnings.date;
-    time_t closestAfterExpDate = std::numeric_limits<time_t>::max();
-    for(const auto& exp : contract.optionsChain.expirations)
-    {
-        auto unixEarningsDate = stringTimeToUnix(earningsDate, "%Y-%m-%d");
-        auto unixExpDate = stringTimeToUnix(exp, "%Y%m%d");
-
-        if(unixExpDate > unixEarningsDate) //is exp date after earnings
-        {
-            time_t diff = unixExpDate - unixEarningsDate;
-            //is exp date at least a week after earnings
-            if(diff > 604800 && diff < (closestAfterExpDate - unixExpDate))
-            {
-                closestAfterExpDate = unixExpDate;
-            }
-        }
-    }
-    double closestCallStrike = std::numeric_limits<double>::max();
-    double closestPutStrike = 0; //0 is the lowest a stock price could go
-    for(const auto& strike : contract.optionsChain.strikes)
-    {
-        double diff = strike - contract.currentMidPrice;
-        /*QString dmsg = QString("%1 %2 diff %3").arg(
-            QString(contract.details.contract.symbol.c_str()),
-            QString::number(strike),
-            QString::number(diff));
-        emit signalPassLogMsg(dmsg);*/
-        if(diff >= 0 && diff < (closestCallStrike - contract.currentMidPrice)) //call
-        {
-            closestCallStrike = strike;
-        }
-        if(diff < 0 && diff > (closestPutStrike - contract.currentMidPrice)) //put
-        {
-            closestPutStrike = strike;
-        }
-    }
-    Option callside;
-    callside.strike = closestCallStrike;
-    callside.expiration = unixTimeToString(closestAfterExpDate, "%Y%m%d");
-    Option putside;
-    putside.strike = closestPutStrike;
-    putside.expiration = unixTimeToString(closestAfterExpDate, "%Y%m%d");
-    StrangleOrder strangleOrder{callside, putside, contract.details.contract};
-
-    auto msg = fmtlog(logger, "%s: StrangleOrder->%s CurrPrice %.02f Earnings %s C %.02f %s P %.02f %s", __func__,
-        contract.details.contract.symbol.c_str(),
-        contract.currentMidPrice,
-        contract.earnings.date.c_str(),
-        callside.strike, callside.expiration.c_str(),
-        putside.strike, putside.expiration.c_str());
-    emit signalPassLogMsg(msg);
-
-    strangles.push_back(strangleOrder);
-    strangleOrdersCounter += 1;
-    if(strangles.size() == selectedContractsToTrade.size())
-    {
-        //get current mkt price of option first
-        for(auto& strangle : strangles)
-        {
-            Contract call;
-            call.symbol = strangle.contract.symbol;
-            call.secType = "OPT";
-            call.right = "C";
-            call.strike = strangle.callSide.strike;
-            call.exchange = strangle.contract.exchange;
-            call.lastTradeDateOrContractMonth = strangle.callSide.expiration;
-            strangle.callSide.reqPriceId = optionsPriceReqId;
-
-            auto msg = fmtlog(logger, "%s: ReqId: %d ReqMktData for %s %s %.02f %s", __func__,
-                strangle.callSide.reqPriceId,
-                call.symbol.c_str(), call.right.c_str(),
-                call.strike, call.lastTradeDateOrContractMonth.c_str());
-            emit signalPassLogMsg(msg);
-            client->reqMktData(strangle.callSide.reqPriceId, call, "", false, false, TagValueListSPtr());
-
-            optionsPriceReqId += 1;
-
-            Contract put;
-            put.symbol = strangle.contract.symbol;
-            put.secType = "OPT";
-            put.right = "P";
-            put.strike = strangle.putSide.strike;
-            put.exchange = strangle.contract.exchange;
-            put.lastTradeDateOrContractMonth = strangle.putSide.expiration;
-            strangle.putSide.reqPriceId = optionsPriceReqId;
-
-            msg = fmtlog(logger, "%s: ReqId: %d ReqMktData for %s %s %.02f %s", __func__,
-                strangle.putSide.reqPriceId,
-                put.symbol.c_str(), put.right.c_str(),
-                put.strike, put.lastTradeDateOrContractMonth.c_str());
-            emit signalPassLogMsg(msg);
-            client->reqMktData(strangle.putSide.reqPriceId, put, "", false, false, TagValueListSPtr());
-
-            optionsPriceReqId += 1;
-        }
-    }
-}
-
-void EarningsVolatilityStrat::filterOptions()
-{
-    //emit signalPassLogMsg(QString("finding closest later expiration date to earnings date and strikes to current price"));
-}
-
 void EarningsVolatilityStrat::onSignalLogger(QString msg)
 {
     emit signalPassLogMsg(msg);
-}
-
-void EarningsVolatilityStrat::onSignalTickByTickBidAsk(int reqId, time_t time, double bidPrice, double askPrice,
-    Decimal bidSize, Decimal askSize, const TickAttribBidAsk& tickAttribBidAsk)
-{
 }
 
 void EarningsVolatilityStrat::onSignalMarketDataType(TickerId tickerId, int type)
