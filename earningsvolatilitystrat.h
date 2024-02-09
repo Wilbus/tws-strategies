@@ -17,9 +17,6 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/filereadstream.h"
 
-#include <iomanip>
-#include <sstream>
-
 class EarningsVolatilityStrat : public BaseAgent
 {
     enum OptionRight
@@ -141,27 +138,6 @@ private:
     void filterOptionsChain(ContractDetails_Ext contract);
     void sendStrangleOrdersIfReady(StrangleOrder strangle);
 
-    std::time_t stringTimeToUnix(std::string str, std::string format)
-    {
-        std::tm t{};
-        std::istringstream ss(str);
-
-        ss >> std::get_time(&t, format.c_str());
-        if (ss.fail()) {
-            throw std::runtime_error{"failed to parse time string"};
-        }
-
-        return mktime(&t);
-    }
-
-    std::string unixTimeToString(std::time_t& t, std::string format)
-    {
-        std::tm tmtime = *std::localtime(&t);
-        std::stringstream buff;
-        buff << std::put_time(&tmtime, format.c_str());
-        return buff.str();
-    }
-
     std::vector<ContractDetails> scanResults;
     std::vector<SuperContract_Ea> contractDetailsWithEarnings;
     std::vector<HistoryIVStruct> historicalIVData;
@@ -169,6 +145,8 @@ private:
     std::vector<SuperContract_Ea> selectedContractsToTrade;
     std::vector<StrangleOrder> strangles;
 
+    time_t scanEarningsDateStart;
+    time_t scanEarningsDateEnd;
     unsigned expecedHistoricalDataEnds{0};
     unsigned historicalDataEndsCounter{0};
     unsigned selectedContractsLastPriceCounter{0};
@@ -183,6 +161,8 @@ private:
 
 signals:
     void signalRequestOptionsChain(std::vector<Contract> contracts);
+    void signalRequestOptionsChain(std::vector<Contract> contracts, time_t latestExp);
+    void signalSubscribeDataBrokerMktData(Contract contract);
 
 private slots:
     void onManagerFinished(QNetworkReply* reply);

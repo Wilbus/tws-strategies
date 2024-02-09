@@ -16,10 +16,18 @@ enum AgentClientIds
 enum StrategyAgents
 {
     AccountManagerAgent = 0,
-    DataBrokerAgent,
     EarningsVolatilityAgent,
+    DataBrokerAgent,
     EarningsVolatilityMonitorAgent,
     OptionsChainRetreiver,
+};
+
+enum ReqIdStarts
+{
+    AccountManagerReqs = 0,
+    DataBrokerReqs = 1000,
+    EarningsVolatilityAgentReqs = 2000,
+    OptionsChainReqs = 3000
 };
 
 class IBaseAgent : public QObject
@@ -32,6 +40,8 @@ public:
 signals:
     void signalPassLogMsg(QString msg);
     void signalSendOrderToAccountManager(Contract contract, Order order);
+    void signalSubscribeDataBrokerMktData(Contract contract);
+    void signalUnSubscribeDataBrokerMktData(Contract contract);
 
 public slots:
     virtual void onSignalError(int id, int code, const std::string& msg, const std::string& advancedOrderRejectJson) = 0;

@@ -23,6 +23,21 @@ void OptionsChainAgent::onSignalGetOptionsChain(std::vector<Contract> contractsV
     getOptionChains();
 }
 
+void OptionsChainAgent::onSignalGetOptionsChain(std::vector<Contract> contractsVec, time_t latestExp)
+{
+    clearContracts();
+    for(const auto& con : contractsVec)
+    {
+        SuperContract scontract;
+        scontract.contract = con;
+        scontract.reqId = reqIdCounter;
+        contracts[reqIdCounter] = scontract;
+        reqIdCounter += 1;
+    }
+    this->latestExp = latestExp;
+    getOptionChains();
+}
+
 void OptionsChainAgent::registerContract(Contract contract)
 {
     SuperContract scontract;
@@ -39,7 +54,8 @@ void OptionsChainAgent::getOptionChains()
         auto msg = fmtlog(logger, "%s: OptionsChainAgent:reqSecDefOptParams reqId %d %s", __func__,
             reqId,
             scontract.contract.symbol.c_str());
-        qDebug() << msg << "\n";
+        emit signalPassLogMsg(msg);
+        //qDebug() << msg << "\n";
         client->reqSecDefOptParams(reqId, scontract.contract.symbol,
             "" , scontract.contract.secType,scontract.contract.conId);
     }
@@ -63,6 +79,9 @@ void OptionsChainAgent::onSignalSecurityDefinitionOptionalParameter(int reqId, c
         //qDebug() << "optionschhainagent onSignalSecurityDefinitionOptionalParameter\n";
         for(const auto& exp : expirations)
         {
+            auto unixExp = stringTimeToUnix(exp, "%Y%m%d");
+            if(unixExp > latestExp)
+                continue;
             contracts[reqId].options.calls[exp] = std::vector<OptionsContract>();
             contracts[reqId].options.puts[exp] = std::vector<OptionsContract>();
             contracts[reqId].options.strikes[exp] = std::vector<double>();
@@ -90,10 +109,11 @@ void OptionsChainAgent::onSignalSecurityDefinitionOptionalParameter(int reqId, c
                 //contracts[reqId].options.strikes[exp].push_back(strike);
             }
             auto msg = fmtlog(logger, "%s: OptionsChainAgent::onSignalSecurityDefinitionOptionalParameter, "
-                                  "Symb: %s Exp: %s has %d put strikes, %d call strikes initially", __func__,
+                                  "Symb: %s Exp: %s has %d put strikes, %d call strikes initially on exchange %s", __func__,
                 contracts[reqId].contract.symbol.c_str(), exp.c_str(),
                 contracts[reqId].options.puts[exp].size(),
-                contracts[reqId].options.calls[exp].size());
+                contracts[reqId].options.calls[exp].size(),
+                exchange.c_str());
             emit signalPassLogMsg(msg);
         }
     }

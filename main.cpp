@@ -3,10 +3,19 @@
 #include <QApplication>
 #include <QLocale>
 #include <QTranslator>
+#include <QStyle>
+#include <QStyleFactory>
+#include <QFile>
+#include <QTextStream>
 
 int main(int argc, char* argv[])
 {
+    auto file = QFile("/datadisk0/sambashare0/coding/deps/QSS/ElegantDark.qss");
+    file.open(QFile::ReadOnly | QFile::Text);
+    auto stream = QTextStream(&file);
+
     QApplication a(argc, argv);
+    a.setStyleSheet(stream.readAll());
 
     QTranslator translator;
     const QStringList uiLanguages = QLocale::system().uiLanguages();

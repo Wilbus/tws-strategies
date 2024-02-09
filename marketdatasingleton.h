@@ -10,7 +10,7 @@ struct MktData
     {
         for(int type = TickType::BID_SIZE; type < TickType::NOT_SET; type++)
         {
-            tickTypes[static_cast<TickType>(type)] = std::numeric_limits<double>::min();
+            tickTypes[static_cast<TickType>(type)] = -99;
         }
     }
     std::map<TickType, double> tickTypes;
@@ -39,6 +39,12 @@ public:
     static MarketDataSingleton* GetInstance();
 
 //data accessors
+    void resetMktData(std::string symbol)
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        mktDataMap[symbol] = MktData();
+    }
+
     void updateMkData(std::string symbol, TickType field, double price)
     {
         //mutex_.lock();

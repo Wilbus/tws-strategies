@@ -71,6 +71,7 @@ private:
 
     QSharedPointer<AgentController> accountAgentController;
     QSharedPointer<AgentController> optionsChainAgentController;
+    QSharedPointer<AgentController> dataBrokerController;
     QSharedPointer<AgentController> earningsStratController;
 };
 #endif // MAINWINDOW_H

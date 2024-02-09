@@ -28,6 +28,7 @@ private:
     int responsesCount{0};
     int optionsDetailsCounter{0};
     int contractDetailsResponsesCount{0};
+    time_t latestExp;
 
     void checkOptionsValidity();
 
@@ -50,6 +51,7 @@ public slots:
     virtual void onSignalSecurityDefinitionOptionalParameterEnd(int reqId) override;
 
     void onSignalGetOptionsChain(std::vector<Contract> contracts);
+    void onSignalGetOptionsChain(std::vector<Contract> contracts, time_t latestExp);
 };
 
 #endif // OPTIONSCHAINAGENT_H

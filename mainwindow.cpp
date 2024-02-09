@@ -16,12 +16,14 @@ MainWindow::MainWindow(QWidget* parent)
 
     accountAgentController = QSharedPointer<AgentController>(new AgentController(StrategyAgents::AccountManagerAgent));
     optionsChainAgentController = QSharedPointer<AgentController>(new AgentController(StrategyAgents::OptionsChainRetreiver));
+    dataBrokerController = QSharedPointer<AgentController>(new AgentController(StrategyAgents::DataBrokerAgent));
 
     connectSignalsAndSlots();
     connectClientSignalsAndSlots();
 
     accountAgentController->start();
     optionsChainAgentController->start();
+    dataBrokerController->start();
 }
 
 MainWindow::~MainWindow()
@@ -31,10 +33,13 @@ MainWindow::~MainWindow()
 
 void MainWindow::connectSignalsAndSlots()
 {
+//logging
     connect(this, SIGNAL(signalLogMsg(QString)), logWindow.get(), SLOT(onSignalLogMsg(QString)));
     connect(accountAgentController->getAgent(), SIGNAL(signalPassLogMsg(QString)), this, SLOT(onSignalLogFromStrat(QString)));
     connect(optionsChainAgentController->getAgent(), SIGNAL(signalPassLogMsg(QString)), this, SLOT(onSignalLogFromStrat(QString)));
+    connect(dataBrokerController->getAgent(), SIGNAL(signalPassLogMsg(QString)), this, SLOT(onSignalLogFromStrat(QString)));
 
+//gui
     connect(accountAgentController->getAgent(), SIGNAL(signalAccountUpdatesDraw(std::string,std::string,std::string,std::string)),
         this, SLOT(onSignalAccountUpdatesDraw(std::string,std::string,std::string,std::string)));
 
@@ -89,11 +94,18 @@ void MainWindow::on_pushButton_clicked()
             connect(earningsStratController->getAgent(), SIGNAL(signalSendOrderToAccountManager(Contract,Order)),
                 accountAgentController->getAgent(), SLOT(onReceivePlaceOrder(Contract,Order)));
 
-            connect(earningsStratController->getAgent(), SIGNAL(signalRequestOptionsChain(std::vector<Contract>)),
-                optionsChainAgentController->getAgent(), SLOT(onSignalGetOptionsChain(std::vector<Contract>)));
+            //connect(earningsStratController->getAgent(), SIGNAL(signalRequestOptionsChain(std::vector<Contract>)),
+            //    optionsChainAgentController->getAgent(), SLOT(onSignalGetOptionsChain(std::vector<Contract>)));
+            connect(earningsStratController->getAgent(), SIGNAL(signalRequestOptionsChain(std::vector<Contract>, time_t)),
+                optionsChainAgentController->getAgent(), SLOT(onSignalGetOptionsChain(std::vector<Contract>, time_t)));
 
             connect(optionsChainAgentController->getAgent(), SIGNAL(signalSendSuperContracts(std::vector<SuperContract>)),
                 earningsStratController->getAgent(), SLOT(onRecieveOptionsChain(std::vector<SuperContract>)));
+
+            connect(earningsStratController->getAgent(), SIGNAL(signalSubscribeDataBrokerMktData(Contract)),
+                dataBrokerController->getAgent(), SLOT(onSubscribeMktData(Contract)));
+            connect(earningsStratController->getAgent(), SIGNAL(signalUnSubscribeDataBrokerMktData(Contract)),
+                dataBrokerController->getAgent(), SLOT(onUnsubscribeMktData(Contract)));
 
             //earningStrat->runStrat();
             earningsStratController->start();

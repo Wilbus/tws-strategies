@@ -1,7 +1,7 @@
 #include "earningsvolatilitystrat.h"
 
 #include "ScannerSubscription.h"
-
+#include "marketdatasingleton.h"
 #include <algorithm>
 #include <iomanip>
 #include <thread>
@@ -52,11 +52,11 @@ void EarningsVolatilityStrat::runStrat()
     netAccessManager = new QNetworkAccessManager();
     connect(netAccessManager, &QNetworkAccessManager::finished, this, &EarningsVolatilityStrat::onManagerFinished);
 
-    std::time_t t = std::time(nullptr);
-    t += 432000; //5 days later than now
-    std::time_t t2 = t + 1.21e+6; // 2 weeks range
-    std::tm nowtime = *std::localtime(&t);
-    std::tm endtime = *std::localtime(&t2);
+    scanEarningsDateStart = std::time(nullptr);
+    scanEarningsDateStart += 432000; //5 days later than now
+    scanEarningsDateEnd = scanEarningsDateStart + 1.21e+6; // 2 weeks range
+    std::tm nowtime = *std::localtime(&scanEarningsDateStart);
+    std::tm endtime = *std::localtime(&scanEarningsDateEnd);
 
     std::stringstream buff;
     std::stringstream buff2;
@@ -287,7 +287,7 @@ void EarningsVolatilityStrat::onSignalHistoricalDataBarEndData(int reqId, std::v
                             __func__, ivstruct.symbol.c_str(), currIV, currIVPercentile);
             emit signalPassLogMsg(msg);
 
-            if (currIVPercentile < 70) // can configure this later
+            if (currIVPercentile < 100) // can configure this later
             {
                 for (const auto& contract : contractDetailsWithEarnings)
                 {
@@ -312,18 +312,40 @@ void EarningsVolatilityStrat::getLastPrice(std::vector<SuperContract_Ea>& contra
 {
     int id = 2000;
 
-    client->reqMarketDataType(MarketDataTypes::Frozen); //test for when market is closed
+    //client->reqMarketDataType(MarketDataTypes::Frozen); //test for when market is closed
     for (auto& con : contracts) //set reqId to associate the reqId with particular contract_ext struct
     {
         //TODO: maybe use this when ready
         //client->reqTickByTickDataMid(id, con.details.contract, 1);
         con.reqId = id;
 
-        emit signalPassLogMsg(fmtlog(logger, "%s reqId %d reqMktData for %s", __func__, con.reqId,
+        /*emit signalPassLogMsg(fmtlog(logger, "%s reqId %d reqMktData for %s", __func__, con.reqId,
             con.contract.symbol.c_str()));
-        client->reqMktData(id, con.contract, "233", false, false, TagValueListSPtr());
+        client->reqMktData(id, con.contract, "233", false, false, TagValueListSPtr());*/
+        emit signalSubscribeDataBrokerMktData(con.contract);
         id += 1;
     }
+    //new code add
+    std::vector<Contract> searchForOptions;
+    for( auto& con : contracts)
+    {
+        auto databank = MarketDataSingleton::GetInstance();
+        while(true)
+        {
+            if(databank->getMktData(con.contract.symbol, TickType::LAST) > 0)
+                break;
+            //spin lock wait for now
+        }
+
+        con.currentMidPrice = databank->getMktData(con.contract.symbol, TickType::LAST);
+        auto msg = fmtlog(logger, "%s: %s LAST price is %.02f", __func__, con.contract.symbol.c_str(), con.currentMidPrice);
+        emit signalPassLogMsg(msg);
+        emit signalUnSubscribeDataBrokerMktData(con.contract); //unsubscribe once we are done retrieving price
+
+        searchForOptions.push_back(con.contract);
+    }
+    emit signalPassLogMsg(fmtlog(logger, "%s: Retrieving options contracts", __func__));
+    emit signalRequestOptionsChain(searchForOptions, scanEarningsDateEnd + 1.21e6); //give 2 weeks extra buffer to search for
 }
 
 void EarningsVolatilityStrat::onSignalTickByTickMid(int reqId, time_t time, double midPoint)
@@ -335,13 +357,6 @@ void EarningsVolatilityStrat::onSignalTickByTickMid(int reqId, time_t time, doub
 
 void EarningsVolatilityStrat::onSignalTickPrice(TickerId tickerId, TickType field, double price, const TickAttrib& attrib)
 {
-    /*QString msg;
-    if(field > TickType::NOT_SET || field < TickType::BID_SIZE)
-        msg = QString("onSignalTickPrice reId %1 ticktype %2").arg(QString::number(tickerId), QString::number(field));
-    else
-        msg = QString("onSignalTickPrice reId %1 ticktype %2").arg(
-            QString::number(tickerId), QString(tickTypeToString.at(field).c_str()));
-    emit signalPassLogMsg(msg);*/
     for(auto& con : selectedContractsToTrade)
     {
         if(tickerId == con.reqId)
@@ -462,8 +477,8 @@ void EarningsVolatilityStrat::sendStrangleOrdersIfReady(StrangleOrder strangle)
     if(strangle.callSide.bidPrice > 0 && strangle.callSide.askPrice > 0 &&
         strangle.putSide.bidPrice > 0 && strangle.putSide.askPrice > 0)
     {
-        client->cancelReqMktData(strangle.callSide.reqPriceId);
-        client->cancelReqMktData(strangle.putSide.reqPriceId);
+        //client->cancelReqMktData(strangle.callSide.reqPriceId);
+        //client->cancelReqMktData(strangle.putSide.reqPriceId);
 
         Contract contractC;
         contractC.symbol = strangle.contract.symbol;
@@ -539,6 +554,7 @@ void EarningsVolatilityStrat::selectOptionsForStrangle(SuperContract_Ea contract
     auto earningsDate = contract.earnings.date;
     time_t closestAfterExpDate = std::numeric_limits<time_t>::max();
     std::string closestAfterExpDateStr;
+    bool expFound = false;
     //we can just choose to look at calls for expiration since calls/puts should have the same expirations
     for(const auto& [exp , callsVec] : contract.options.calls)
     {
@@ -553,8 +569,14 @@ void EarningsVolatilityStrat::selectOptionsForStrangle(SuperContract_Ea contract
             {
                 closestAfterExpDate = unixExpDate;
                 closestAfterExpDateStr = exp;
+                expFound = true;
             }
         }
+    }
+    if(!expFound)
+    {
+        emit signalPassLogMsg(fmtlog(logger, "%s: couldn't find an expiration date at least a week after the earnings date", __func__));
+        return;
     }
     double closestCallStrike = std::numeric_limits<double>::max();
     double closestPutStrike = 0; //0 is the lowest a stock price could go
@@ -613,7 +635,8 @@ void EarningsVolatilityStrat::selectOptionsForStrangle(SuperContract_Ea contract
                 call.symbol.c_str(), call.right.c_str(),
                 call.strike, call.lastTradeDateOrContractMonth.c_str());
             emit signalPassLogMsg(msg);
-            client->reqMktData(strangle.callSide.reqPriceId, call, "", false, false, TagValueListSPtr());
+            //client->reqMktData(strangle.callSide.reqPriceId, call, "", false, false, TagValueListSPtr());
+            emit signalSubscribeDataBrokerMktData(call);
 
             optionsPriceReqId += 1;
 
@@ -631,9 +654,31 @@ void EarningsVolatilityStrat::selectOptionsForStrangle(SuperContract_Ea contract
                 put.symbol.c_str(), put.right.c_str(),
                 put.strike, put.lastTradeDateOrContractMonth.c_str());
             emit signalPassLogMsg(msg);
-            client->reqMktData(strangle.putSide.reqPriceId, put, "", false, false, TagValueListSPtr());
+            //client->reqMktData(strangle.putSide.reqPriceId, put, "", false, false, TagValueListSPtr());
 
             optionsPriceReqId += 1;
+
+            emit signalSubscribeDataBrokerMktData(put);
+
+            auto databank = MarketDataSingleton::GetInstance();
+
+            std::string callOptionName = optionContractString(call);
+            std::string putOptionName = optionContractString(put);
+            while(true)
+            {   //spin lock wait for now
+                if(databank->getMktData(callOptionName, TickType::BID) > 0 &&
+                    databank->getMktData(callOptionName, TickType::ASK) > 0 &&
+                    databank->getMktData(putOptionName, TickType::BID) > 0 &&
+                    databank->getMktData(putOptionName, TickType::ASK) > 0)
+                {
+                    break;
+                }
+            }
+            strangle.callSide.bidPrice = databank->getMktData(callOptionName, TickType::BID);
+            strangle.callSide.askPrice = databank->getMktData(callOptionName, TickType::ASK);
+            strangle.putSide.bidPrice = databank->getMktData(putOptionName, TickType::BID);
+            strangle.putSide.askPrice = databank->getMktData(putOptionName, TickType::ASK);
+            sendStrangleOrdersIfReady(strangle);
         }
     }
 }
