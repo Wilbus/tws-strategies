@@ -92,7 +92,7 @@ void EWrapperQThreaded::orderStatus(OrderId orderId, const std::string& status, 
     double avgFillPrice, int permId, int parentId, double lastFillPrice, int clientId, const std::string& whyHeld,
     double mktCapPrice)
 {
-    auto msg = fmtlog(logger, "%s: Order ID: %d, status: %s, filled %s", __func__, orderId, status.c_str());
+    auto msg = fmtlog(logger, "%s: Order ID: %d, status: %s", __func__, orderId, status.c_str());
     emit signalLogger(msg);
     emit signalOrderStatus(orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId,
         whyHeld, mktCapPrice);

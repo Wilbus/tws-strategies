@@ -287,7 +287,7 @@ void EarningsVolatilityStrat::onSignalHistoricalDataBarEndData(int reqId, std::v
                             __func__, ivstruct.symbol.c_str(), currIV, currIVPercentile);
             emit signalPassLogMsg(msg);
 
-            if (currIVPercentile < 100) // can configure this later
+            if (currIVPercentile < 50) // can configure this later
             {
                 for (const auto& contract : contractDetailsWithEarnings)
                 {
@@ -313,9 +313,8 @@ void EarningsVolatilityStrat::getLastPrice(std::vector<SuperContract_Ea>& contra
     int id = 2000;
 
     //client->reqMarketDataType(MarketDataTypes::Frozen); //test for when market is closed
-    for (auto& con : contracts) //set reqId to associate the reqId with particular contract_ext struct
+    for (auto& con : contracts)
     {
-        con.reqId = id;
         emit signalSubscribeDataBrokerMktData(con.contract);
         id += 1;
     }
@@ -392,6 +391,9 @@ void EarningsVolatilityStrat::sendStrangleOrdersIfReady(StrangleOrder strangle)
         putOrder.algoParams.reset(new TagValueList());
         TagValueSPtr tagp(new TagValue("adaptivePriority", "Urgent"));
         putOrder.algoParams->push_back(tagp);
+
+        emit signalUnSubscribeDataBrokerMktData(contractC);
+        emit signalUnSubscribeDataBrokerMktData(contractP);
 
         emit signalSendOrderToAccountManager(contractC, callOrder);
         emit signalSendOrderToAccountManager(contractP, putOrder);

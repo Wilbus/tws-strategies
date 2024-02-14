@@ -26,6 +26,8 @@ private:
     void getNextValidOrderId();
     void subscribeAccountUpdates();
     void subscribePortoflioUpdates();
+    Contract recreateContract(Contract contract);
+    Order recreateOrder(Order order);
 
     //TwsClientQThreaded* client;
     OrderId orderId;

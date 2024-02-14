@@ -39,6 +39,10 @@ void MainWindow::connectSignalsAndSlots()
     connect(optionsChainAgentController->getAgent(), SIGNAL(signalPassLogMsg(QString)), this, SLOT(onSignalLogFromStrat(QString)));
     connect(dataBrokerController->getAgent(), SIGNAL(signalPassLogMsg(QString)), this, SLOT(onSignalLogFromStrat(QString)));
 
+//databroker
+    connect(accountAgentController->getAgent(), SIGNAL(signalSubscribeDataBrokerMktData(Contract)),
+        dataBrokerController->getAgent(), SLOT(onSubscribeMktData(Contract)));
+
 //gui
     connect(accountAgentController->getAgent(), SIGNAL(signalAccountUpdatesDraw(std::string,std::string,std::string,std::string)),
         this, SLOT(onSignalAccountUpdatesDraw(std::string,std::string,std::string,std::string)));

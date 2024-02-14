@@ -98,18 +98,29 @@ void AccountManager::onSignalOrderStatus(OrderId orderId, const std::string& sta
         pendingOrders[orderId].mktCapPrice = mktCapPrice;
     }
     //pendingOrders[orderId] should be present by now
-    if(pendingOrders[orderId].state.status == "Submitted") //Submitted is the status we want to use in production
+    //if(pendingOrders[orderId].state.status == "Submitted") //Submitted is the status we want to use in production
+    if(pendingOrders[orderId].status == "Submitted") //Submitted is the status we want to use in production
     {
-        QTimer* timer = new QTimer();
-        orderTimers[orderId] = timer;
-        connect(timer, &QTimer::timeout, this, std::bind(&AccountManager::updateBid, this, orderId));
-        orderTimers[orderId]->start(10e3); //ms
+        orderTimers[orderId] = new QTimer();
+        connect(orderTimers[orderId], &QTimer::timeout, this, std::bind(&AccountManager::updateBid, this, orderId));
+        orderTimers[orderId]->setSingleShot(true);
+        orderTimers[orderId]->start(30e3); //ms
         auto msg = fmtlog(logger, "%s: starting order timer for orderID %d", __func__, orderId);
         emit signalPassLogMsg(msg);
     }
-    else if(pendingOrders[orderId].state.status == "Filled")
+    //else if(pendingOrders[orderId].state.status == "Filled")
+    else if(pendingOrders[orderId].status == "Filled")
     {
+        if(orderTimers.find(orderId) == orderTimers.end())
+        {
+            auto msg = fmtlog(logger, "%s, WARN: Order ID %d filled but no timer to stop", __func__, orderId);
+            emit signalPassLogMsg(msg);
+            return;
+        }
         orderTimers[orderId]->stop();
+        auto msg = fmtlog(logger, "%s: stopping order timer for orderID %d", __func__, orderId);
+        emit signalPassLogMsg(msg);
+        emit signalUnSubscribeDataBrokerMktData(pendingOrders[orderId].contract);
     }
 }
 
@@ -124,13 +135,43 @@ void AccountManager::onSignalOpenOrder(OrderId orderId, const Contract& contract
         pending.state = state;
 
         pendingOrders[orderId] = pending;
+        auto msg = fmtlog(logger, "%s: orderId %d opened", __func__, orderId);
+        emit signalPassLogMsg(msg);
+        emit signalSubscribeDataBrokerMktData(contract);
     }
     else
     {
         pendingOrders[orderId].contract = contract;
         pendingOrders[orderId].order = order;
         pendingOrders[orderId].state = state;
+        auto msg = fmtlog(logger, "%s: orderId %d updated", __func__, orderId);
+        emit signalPassLogMsg(msg);
     }
+}
+
+Contract AccountManager::recreateContract(Contract con)
+{
+    Contract contract;
+    contract.symbol = con.symbol;
+    contract.secType = con.secType;
+    contract.right = con.right;
+    contract.strike = con.strike;
+    contract.exchange = con.exchange;
+    contract.lastTradeDateOrContractMonth = con.lastTradeDateOrContractMonth;
+    return contract;
+}
+
+Order AccountManager::recreateOrder(Order ord)
+{
+    Order order;
+    order.action = ord.action;
+    order.orderType = ord.orderType;
+    order.lmtPrice = ord.lmtPrice;
+    order.totalQuantity = ord.totalQuantity;
+    order.transmit = ord.transmit;
+    order.algoStrategy = ord.algoStrategy;
+    order.algoParams = ord.algoParams;
+    return order;
 }
 
 void AccountManager::updateBid(OrderId orderId)
@@ -138,9 +179,13 @@ void AccountManager::updateBid(OrderId orderId)
     auto msg = fmtlog(logger, "%s: updating orderid %d\n", __func__, orderId);
     emit signalPassLogMsg(msg);
     //looks like modifying order only works if you recreate the same order as before exactly the same
+    auto databank = MarketDataSingleton::GetInstance();
+
     auto pendingContract = pendingOrders[orderId].contract;
+    auto contract = recreateContract(pendingContract);
     auto pendingOrder = pendingOrders[orderId].order;
-    Contract contract;
+    auto order = recreateOrder(pendingOrder);
+    /*Contract contract;
     contract.symbol = pendingContract.symbol;
     contract.secType = pendingContract.secType;
     contract.right = pendingContract.right;
@@ -150,11 +195,20 @@ void AccountManager::updateBid(OrderId orderId)
     Order order;
     order.action = pendingOrder.action;
     order.orderType = pendingOrder.orderType;
-    order.lmtPrice = std::ceil(pendingOrder.lmtPrice * 99.0) / 100.0;//pendingOrder.lmtPrice;
+
+    double bid = databank->getMktData(optionContractString(contract), TickType::BID);
+    double ask = databank->getMktData(optionContractString(contract), TickType::ASK);
+    double mid = (bid + ask) / 2;
+    order.lmtPrice = std::ceil(mid * 100.0) / 100.0;;
     order.totalQuantity = pendingOrder.totalQuantity;
     order.transmit = pendingOrder.transmit;
     order.algoStrategy = pendingOrder.algoStrategy;
-    order.algoParams = pendingOrder.algoParams;
+    order.algoParams = pendingOrder.algoParams;*/
+
+    double bid = databank->getMktData(optionContractString(contract), TickType::BID);
+    double ask = databank->getMktData(optionContractString(contract), TickType::ASK);
+    double mid = (bid + ask) / 2;
+    order.lmtPrice = std::ceil(mid * 100.0) / 100.0;;
 
     //stop this instance of timer beacause a new timer will be created onSignalOrderStatus
     orderTimers[orderId]->stop();

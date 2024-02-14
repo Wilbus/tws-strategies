@@ -11,8 +11,8 @@ DataBroker::DataBroker()
 
 void DataBroker::onSignalTickPrice(TickerId tickerId, TickType field, double price, const TickAttrib& attrib)
 {
-    auto msg = fmtlog(logger, "%s: reqId %d %s %.02f", __func__, tickerId, tickTypeToString.at(field).c_str(), price);
-    emit signalPassLogMsg(msg);
+    //auto msg = fmtlog(logger, "%s: reqId %d %s %.02f", __func__, tickerId, tickTypeToString.at(field).c_str(), price);
+    //emit signalPassLogMsg(msg);
 
     if(reqIdMap.find(tickerId) != reqIdMap.end())
     {
@@ -43,7 +43,7 @@ void DataBroker::onSubscribeMktData(Contract contract)
     else if(contract.secType == "OPT")
         msg = fmtlog(logger, "%s: subscribe to %s mktData with reqId %d", __func__, optionContractString(contract).c_str(), reqIdCounter);
     emit signalPassLogMsg(msg);
-    client->reqMarketDataType(MarketDataTypes::Frozen);
+    //client->reqMarketDataType(MarketDataTypes::Frozen);
     client->reqMktData(reqIdCounter, contract, "", false, false, TagValueListSPtr());
     reqIdMap[reqIdCounter] = contract;
     reqIdCounter++;
@@ -51,11 +51,24 @@ void DataBroker::onSubscribeMktData(Contract contract)
 
 void DataBroker::onUnsubscribeMktData(Contract contract)
 {
+
+    std::string symbolStr;
+    if(contract.secType == "OPT")
+    {
+        symbolStr = optionContractString(contract);
+    }
+    else if(contract.secType == "STK")
+    {
+        symbolStr = contract.symbol;
+    }
+    auto msg = fmtlog(logger, "%s: try to unsubscribe from %s mktData", __func__, symbolStr.c_str());
+    emit signalPassLogMsg(msg);
+
     for(auto it = reqIdMap.begin(); it != reqIdMap.end(); ++it)
     {
         if(it->second.symbol == contract.symbol)
         {
-            auto msg = fmtlog(logger, "%s: unsubscribe from %s mktData", __func__, contract.symbol.c_str());
+            auto msg = fmtlog(logger, "%s: unsubscribe from %s mktData", __func__, symbolStr.c_str());
             emit signalPassLogMsg(msg);
 
             client->cancelReqMktData(it->first);
