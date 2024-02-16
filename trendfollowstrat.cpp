@@ -2,6 +2,7 @@
 
 #include "rapidjson/document.h"
 #include "rapidjson/filereadstream.h"
+#include "ta-lib-wrapper.h"
 
 TrendFollowStrat::TrendFollowStrat()
 {
@@ -84,6 +85,76 @@ void TrendFollowStrat::getWatchListHistorical()
     }
 }
 
+bool TrendFollowStrat::checkTimestampAlignment(std::vector<MultiCandle> mcandles, std::vector<IndicatorValue> ivalues)
+{
+    bool check{true};
+    if(ivalues.size() != mcandles.size())
+    {
+        check = false;
+    }
+    for (unsigned i = 0; i < mcandles.size(); i++)
+    {
+        if (mcandles[i].getTimestamp() != ivalues[i].timestamp)
+        {
+            check = false;
+            break;
+        }
+    }
+
+    if(!check)
+    {
+        INFOLOG("%s: ERROR, mismatch indicator vector size and mcandle", __func__);
+    }
+    return check;
+}
+
+void TrendFollowStrat::onReceivedAllHistoricalData()
+{
+    //INFOLOG("%s", __func__);
+
+    for(auto& [reqId, historicalData] : watchListHistoricals)
+    {
+        ta_lib_wrapper::TALIB talib;
+        auto mcandles = historicalData.mCandles;
+
+        auto sma9 = talib.SMA(mcandles, 0, mcandles.size() - 1, 9); //9 day SMA
+        if(!checkTimestampAlignment(mcandles, sma9))
+        {
+            return;
+        }
+
+        auto sma15 = talib.SMA(mcandles, 0, mcandles.size() - 1, 15); //5 day SMA
+        if(!checkTimestampAlignment(mcandles, sma15))
+        {
+            return;
+        }
+
+        auto sma21 = talib.SMA(mcandles, 0, mcandles.size() - 1, 21); //21 day SMA
+        if(!checkTimestampAlignment(mcandles, sma21))
+        {
+            return;
+        }
+
+        IndicatorType sma9type;
+        sma9type.type = IndicatorTypes::SMA;
+        sma9type.name = "sma9";
+
+        IndicatorType sma15type;
+        sma9type.type = IndicatorTypes::SMA;
+        sma9type.name = "sma15";
+
+        IndicatorType sma21type;
+        sma9type.type = IndicatorTypes::SMA;
+        sma9type.name = "sma21";
+
+        addIndicatorData(historicalData.mCandles, sma9, sma9type);
+        addIndicatorData(historicalData.mCandles, sma15, sma15type);
+        addIndicatorData(historicalData.mCandles, sma21, sma21type);
+    }
+
+    INFOLOG("%s done", __func__);
+}
+
 void TrendFollowStrat::onSignalHistoricalDataBarEndData(int reqId, std::vector<Bar> bars)
 {
     if(watchListHistoricals.find(reqId) == watchListHistoricals.end())
@@ -105,8 +176,14 @@ void TrendFollowStrat::onSignalHistoricalDataBarEndData(int reqId, std::vector<B
     }
 }
 
-void TrendFollowStrat::onReceivedAllHistoricalData()
+void TrendFollowStrat::addIndicatorData(std::vector<MultiCandle>& mCandles, std::vector<IndicatorValue> ivalues, IndicatorType type)
 {
-    INFOLOG("%s", __func__);
-
+    for (unsigned i = 0; i < mCandles.size(); i++)
+    {
+        if (mCandles[i].getTimestamp() != ivalues[i].timestamp)
+        {
+            throw std::runtime_error("Misaligned timestamps in new indicators vector");
+        }
+        mCandles[i].setInd(type, ivalues[i]);
+    }
 }

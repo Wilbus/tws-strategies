@@ -30,6 +30,8 @@ private:
     std::vector<Contract> getWatchList();
 
     void getWatchListHistorical();
+    bool checkTimestampAlignment(std::vector<MultiCandle> mcandles, std::vector<IndicatorValue> ivalues);
+    void addIndicatorData(std::vector<MultiCandle>& mCandles, std::vector<IndicatorValue> ivalues, IndicatorType type);
     std::map<int, WatchListHistorical> watchListHistoricals;
     int watchListHistoricalDataCount{0};
 

@@ -50,6 +50,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         IndicatorTypes.h
         ta-lib-wrapper.h ta-lib-wrapper.cpp
         timefuncs.h
+        IndicatorTypes.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET strategiesbotwidget APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
