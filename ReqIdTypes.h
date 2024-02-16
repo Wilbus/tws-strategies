@@ -8,8 +8,6 @@
 #include "OrderState.h"
 #include <QTimer>
 #include <QSharedPointer>
-#include <iomanip>
-#include <sstream>
 
 enum ReqIdType
 {
@@ -132,27 +130,6 @@ static std::string optionContractString(Contract contract)
         throw std::runtime_error("optionContractString() contract is not an option");
     }
 }
-
-static std::time_t stringTimeToUnix(std::string str, std::string format)
-    {
-        std::tm t{};
-        std::istringstream ss(str);
-
-        ss >> std::get_time(&t, format.c_str());
-        if (ss.fail()) {
-            throw std::runtime_error{"failed to parse time string"};
-        }
-
-        return mktime(&t);
-    }
-
-static std::string unixTimeToString(std::time_t& t, std::string format)
-    {
-        std::tm tmtime = *std::localtime(&t);
-        std::stringstream buff;
-        buff << std::put_time(&tmtime, format.c_str());
-        return buff.str();
-    }
 
 const static std::map<TickType, std::string> tickTypeToString = {
     {BID_SIZE, "BID_SIZE"},

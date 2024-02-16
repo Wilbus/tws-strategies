@@ -1,5 +1,6 @@
 #include "optionschainagent.h"
 #include <thread>
+#include "timefuncs.h"
 
 OptionsChainAgent::OptionsChainAgent()
 {

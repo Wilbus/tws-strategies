@@ -91,8 +91,13 @@ void TrendFollowStrat::onSignalHistoricalDataBarEndData(int reqId, std::vector<B
         INFOLOG("%s: WARN: reqid %d is not a key in watchListHistoricals", __func__, reqId);
         return;
     }
-    INFOLOG("%s reqId %d historicalData received", __func__, reqId);
-    watchListHistoricals.at(reqId).bars = bars;
+    //INFOLOG("%s reqId %d historicalData received", __func__, reqId);
+    for(const auto& bar : bars)
+    {
+        auto mcandle = MultiCandle(bar);
+        watchListHistoricals.at(reqId).mCandles.push_back(mcandle);
+    }
+
     watchListHistoricalDataCount += 1;
     if(watchListHistoricalDataCount == watchListHistoricals.size())
     {
@@ -103,4 +108,5 @@ void TrendFollowStrat::onSignalHistoricalDataBarEndData(int reqId, std::vector<B
 void TrendFollowStrat::onReceivedAllHistoricalData()
 {
     INFOLOG("%s", __func__);
+
 }

@@ -2,6 +2,7 @@
 #define TRENDFOLLOWSTRAT_H
 
 #include "strategies.h"
+#include "MultiCandle.h"
 
 class TrendFollowStrat : public BaseAgent
 {
@@ -10,7 +11,7 @@ class TrendFollowStrat : public BaseAgent
     struct WatchListHistorical
     {
         Contract contract;
-        std::vector<Bar> bars;
+        std::vector<MultiCandle> mCandles;
     };
 
 public:

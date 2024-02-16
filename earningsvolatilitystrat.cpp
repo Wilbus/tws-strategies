@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <thread>
 #include <cstdio>
+#include "timefuncs.h"
 
 using namespace std;
 

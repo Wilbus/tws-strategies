@@ -46,6 +46,10 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         marketdatasingleton.h
         marketdatasingleton.cpp
         trendfollowstrat.h trendfollowstrat.cpp
+        MultiCandle.h
+        IndicatorTypes.h
+        ta-lib-wrapper.h ta-lib-wrapper.cpp
+        timefuncs.h
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET strategiesbotwidget APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
@@ -72,6 +76,7 @@ endif()
 target_link_libraries(strategiesbotwidget PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 target_link_libraries(strategiesbotwidget PRIVATE Qt${QT_VERSION_MAJOR}::Network)
 target_link_libraries(strategiesbotwidget PUBLIC mytwsapi)
+target_link_libraries(strategiesbotwidget PUBLIC libta_lib.so)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
