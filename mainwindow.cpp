@@ -83,27 +83,13 @@ void MainWindow::on_pushButton_clicked()
     {
         case StrategyAgents::EarningsVolatilityAgent:
         {
-            //earningStrat = QSharedPointer<EarningsVolatilityStrat>(new EarningsVolatilityStrat());
             earningsStratController = QSharedPointer<AgentController>(new AgentController(StrategyAgents::EarningsVolatilityAgent));
-
-            /*connect(earningStrat.get(), SIGNAL(signalPassLogMsg(QString)), this, SLOT(onSignalLogFromStrat(QString)));
-
-            connect(earningStrat.get(), SIGNAL(signalSendOrderToAccountManager(Contract,Order)),
-                accountAgentController->getAgent(), SLOT(onReceivePlaceOrder(Contract,Order)));
-
-            connect(earningStrat.get(), SIGNAL(signalRequestOptionsChain(std::vector<Contract>)),
-                optionsChainAgentController->getAgent(), SLOT(onSignalGetOptionsChain(std::vector<Contract>)));
-
-            connect(optionsChainAgentController->getAgent(), SIGNAL(signalSendSuperContracts(std::vector<SuperContract>)),
-                earningStrat.get(), SLOT(onRecieveOptionsChain(std::vector<SuperContract>)));*/
 
             connect(earningsStratController->getAgent(), SIGNAL(signalPassLogMsg(QString)), this, SLOT(onSignalLogFromStrat(QString)));
 
             connect(earningsStratController->getAgent(), SIGNAL(signalSendOrderToAccountManager(Contract,Order)),
                 accountAgentController->getAgent(), SLOT(onReceivePlaceOrder(Contract,Order)));
 
-            //connect(earningsStratController->getAgent(), SIGNAL(signalRequestOptionsChain(std::vector<Contract>)),
-            //    optionsChainAgentController->getAgent(), SLOT(onSignalGetOptionsChain(std::vector<Contract>)));
             connect(earningsStratController->getAgent(), SIGNAL(signalRequestOptionsChain(std::vector<Contract>, time_t, time_t)),
                 optionsChainAgentController->getAgent(), SLOT(onSignalGetOptionsChain(std::vector<Contract>, time_t, time_t)));
 
@@ -115,8 +101,29 @@ void MainWindow::on_pushButton_clicked()
             connect(earningsStratController->getAgent(), SIGNAL(signalUnSubscribeDataBrokerMktData(Contract)),
                 dataBrokerController->getAgent(), SLOT(onUnsubscribeMktData(Contract)));
 
-            //earningStrat->runStrat();
             earningsStratController->start();
+            break;
+        }
+        case StrategyAgents::TrendFollowAgent:
+        {
+            trendFollowStratController = QSharedPointer<AgentController>(new AgentController(StrategyAgents::TrendFollowAgent));
+            connect(trendFollowStratController->getAgent(), SIGNAL(signalPassLogMsg(QString)), this, SLOT(onSignalLogFromStrat(QString)));
+
+            connect(trendFollowStratController->getAgent(), SIGNAL(signalSendOrderToAccountManager(Contract,Order)),
+                accountAgentController->getAgent(), SLOT(onReceivePlaceOrder(Contract,Order)));
+
+            connect(trendFollowStratController->getAgent(), SIGNAL(signalRequestOptionsChain(std::vector<Contract>, time_t, time_t)),
+                optionsChainAgentController->getAgent(), SLOT(onSignalGetOptionsChain(std::vector<Contract>, time_t, time_t)));
+
+            connect(optionsChainAgentController->getAgent(), SIGNAL(signalSendSuperContracts(std::vector<SuperContract>)),
+                trendFollowStratController->getAgent(), SLOT(onRecieveOptionsChain(std::vector<SuperContract>)));
+
+            connect(trendFollowStratController->getAgent(), SIGNAL(signalSubscribeDataBrokerMktData(Contract)),
+                dataBrokerController->getAgent(), SLOT(onSubscribeMktData(Contract)));
+            connect(trendFollowStratController->getAgent(), SIGNAL(signalUnSubscribeDataBrokerMktData(Contract)),
+                dataBrokerController->getAgent(), SLOT(onUnsubscribeMktData(Contract)));
+
+            trendFollowStratController->start();
             break;
         }
         default:

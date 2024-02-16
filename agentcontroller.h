@@ -7,6 +7,7 @@
 #include "accountmanager.h"
 #include "optionschainagent.h"
 #include "databrokeragent.h"
+#include "trendfollowstrat.h"
 
 class AgentController : public QObject
 {
@@ -39,8 +40,14 @@ public:
                 agent = new DataBroker();
                 break;
             }
+            case TrendFollowAgent:
+            {
+                agent = new TrendFollowStrat();
+                break;
+            }
             default:
             {
+                throw std::runtime_error("AgentController: Invalid agent type");
                 break;
             }
         }

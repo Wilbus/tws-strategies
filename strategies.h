@@ -4,6 +4,10 @@
 #include <QObject>
 #include "twsclientqthreaded.h"
 
+#define INFOLOG(msg, ...) \
+    QString qstr = fmtlog(logger, msg __VA_OPT__(, ) __VA_ARGS__); \
+    emit signalPassLogMsg(qstr);
+
 enum AgentClientIds
 {
     AccountManagerClient = 0,
@@ -11,12 +15,14 @@ enum AgentClientIds
     OptionsChainClient,
     EarningsVolatilityStratClient,
     EarningsVolatilityMonitorClient,
+    TrendFollowAgentClient
 };
 
 enum StrategyAgents
 {
     AccountManagerAgent = 0,
     EarningsVolatilityAgent,
+    TrendFollowAgent,
     DataBrokerAgent,
     EarningsVolatilityMonitorAgent,
     OptionsChainRetreiver,
@@ -27,7 +33,8 @@ enum ReqIdStarts
     AccountManagerReqs = 0,
     DataBrokerReqs = 1000,
     EarningsVolatilityAgentReqs = 2000,
-    OptionsChainReqs = 3000
+    TrendFollowAgentReqs = 3000,
+    OptionsChainReqs = 4000
 };
 
 class IBaseAgent : public QObject
