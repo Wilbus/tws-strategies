@@ -110,7 +110,7 @@ bool TrendFollowStrat::checkTimestampAlignment(std::vector<MultiCandle> mcandles
 
 void TrendFollowStrat::onReceivedAllHistoricalData()
 {
-    //INFOLOG("%s", __func__);
+    INFOLOG("%s", __func__);
 
     for(auto& [reqId, historicalData] : watchListHistoricals)
     {

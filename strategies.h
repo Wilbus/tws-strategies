@@ -4,9 +4,7 @@
 #include <QObject>
 #include "twsclientqthreaded.h"
 
-#define INFOLOG(msg, ...) \
-    QString qstr = fmtlog(logger, msg __VA_OPT__(, ) __VA_ARGS__); \
-    emit signalPassLogMsg(qstr);
+#define INFOLOG(msg, ...) emit signalPassLogMsg(fmtlog(logger, msg __VA_OPT__(, ) __VA_ARGS__));
 
 enum AgentClientIds
 {
