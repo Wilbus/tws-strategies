@@ -28,6 +28,7 @@ private:
     int responsesCount{0};
     int optionsDetailsCounter{0};
     int contractDetailsResponsesCount{0};
+    time_t earliestExp;
     time_t latestExp;
 
     void checkOptionsValidity();
@@ -52,6 +53,7 @@ public slots:
 
     void onSignalGetOptionsChain(std::vector<Contract> contracts);
     void onSignalGetOptionsChain(std::vector<Contract> contracts, time_t latestExp);
+    void onSignalGetOptionsChain(std::vector<Contract> contracts, time_t earliestExp, time_t latestExp);
 };
 
 #endif // OPTIONSCHAINAGENT_H

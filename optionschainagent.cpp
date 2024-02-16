@@ -38,6 +38,22 @@ void OptionsChainAgent::onSignalGetOptionsChain(std::vector<Contract> contractsV
     getOptionChains();
 }
 
+void OptionsChainAgent::onSignalGetOptionsChain(std::vector<Contract> contractsVec, time_t earliestExp, time_t latestExp)
+{
+    clearContracts();
+    for(const auto& con : contractsVec)
+    {
+        SuperContract scontract;
+        scontract.contract = con;
+        scontract.reqId = reqIdCounter;
+        contracts[reqIdCounter] = scontract;
+        reqIdCounter += 1;
+    }
+    this->earliestExp = earliestExp;
+    this->latestExp = latestExp;
+    getOptionChains();
+}
+
 void OptionsChainAgent::registerContract(Contract contract)
 {
     SuperContract scontract;
@@ -80,7 +96,7 @@ void OptionsChainAgent::onSignalSecurityDefinitionOptionalParameter(int reqId, c
         for(const auto& exp : expirations)
         {
             auto unixExp = stringTimeToUnix(exp, "%Y%m%d");
-            if(unixExp > latestExp)
+            if(unixExp < earliestExp || unixExp > latestExp) //skip if expiration is before or after requested dates
                 continue;
             contracts[reqId].options.calls[exp] = std::vector<OptionsContract>();
             contracts[reqId].options.puts[exp] = std::vector<OptionsContract>();

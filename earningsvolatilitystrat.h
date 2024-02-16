@@ -160,6 +160,7 @@ private:
 signals:
     void signalRequestOptionsChain(std::vector<Contract> contracts);
     void signalRequestOptionsChain(std::vector<Contract> contracts, time_t latestExp);
+    void signalRequestOptionsChain(std::vector<Contract> contracts, time_t earliestExp, time_t latestExp);
     void signalSubscribeDataBrokerMktData(Contract contract);
 
 private slots:

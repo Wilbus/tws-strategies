@@ -53,7 +53,7 @@ void EarningsVolatilityStrat::runStrat()
     connect(netAccessManager, &QNetworkAccessManager::finished, this, &EarningsVolatilityStrat::onManagerFinished);
 
     scanEarningsDateStart = std::time(nullptr);
-    scanEarningsDateStart += 432000; //5 days later than now
+    scanEarningsDateStart += 5.184e+6; //432000; //5 days later than now
     scanEarningsDateEnd = scanEarningsDateStart + 1.21e+6; // 2 weeks range
     std::tm nowtime = *std::localtime(&scanEarningsDateStart);
     std::tm endtime = *std::localtime(&scanEarningsDateEnd);
@@ -338,7 +338,7 @@ void EarningsVolatilityStrat::getLastPrice(std::vector<SuperContract_Ea>& contra
         searchForOptions.push_back(con.contract);
     }
     emit signalPassLogMsg(fmtlog(logger, "%s: Retrieving options contracts", __func__));
-    emit signalRequestOptionsChain(searchForOptions, scanEarningsDateEnd + 1.21e6); //give 2 weeks extra buffer to search for
+    emit signalRequestOptionsChain(searchForOptions, scanEarningsDateStart, scanEarningsDateEnd + 1.21e6); //give 2 weeks extra buffer to search for
 }
 
 void EarningsVolatilityStrat::sendStrangleOrdersIfReady(StrangleOrder strangle)

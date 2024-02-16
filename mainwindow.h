@@ -31,7 +31,7 @@ public:
 
     void closeEvent(QCloseEvent* event)
     {
-        logWindow->close();
+        //logWindow->close();
         QMainWindow::closeEvent(event);
     }
 
